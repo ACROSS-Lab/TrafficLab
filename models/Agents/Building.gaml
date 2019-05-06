@@ -57,6 +57,9 @@ species door {
 
 species pedestrian_path skills:[pedestrian_road] {
 	aspect virtual {
-		draw self.free_space color:#yellow;
+		draw shape color:#black;
+		loop pt over: shape.points {
+			draw square(0.1) color: #blue at: pt;
+		}
 	}
 }

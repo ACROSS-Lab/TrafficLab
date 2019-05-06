@@ -13,23 +13,24 @@ import "Agents/Building.gaml"
 global {
 	
 	bool debug_mode <- false parameter:true category:"display";
-	string pedestrian_aspect <- "default" parameter:true among:["default","path","destrination"] category:"display";
+	string pedestrian_aspect <- "default" parameter:true among:["default","path","destination"] category:"display";
 	
 	// Pedestrian skill parameters
 	string people_type parameter:true among:["simple","advanced"] init:"advanced" category:pedestrian;
-	int nb_pedestrian parameter:true init:5 min:0 category:pedestrian;
-	float corridor_size parameter:true init:0.0 min:0.0 max:3#m category:pedestrian;
+	int nb_pedestrian parameter:true init:10 min:0 category:pedestrian;
+	float corridor_size parameter:true init:2.0 min:0.0 max:3#m category:pedestrian;
 	float P_obstacle_distance_repulsion_coeff <- 1.0 parameter: true category:pedestrian;
 	float P_obstacle_repulsion_intensity <- 2.0 parameter: true category:pedestrian;
 	float P_overlapping_coefficient <- 2.0 parameter: true category:pedestrian;
 	float P_perception_sensibility <- 1.0 parameter: true category:pedestrian;
 	float P_shoulder_length <- 0.5 parameter: true category:pedestrian;
+	float P_tolerance_target <- 0.1 parameter: true category:pedestrian;
 	float P_proba_detour <- 0.5 parameter: true category:pedestrian;
 	bool P_avoid_other <- true parameter: true category:pedestrian;
 	
 	
 	// Building parameters
-	string building_type parameter:true among:["simple","complex"] init:"simple" category:building;
+	string building_type parameter:true among:["simple","complex"] init:"complex" category:building;
 	float door_width parameter:true init:1.2#m min:0.5#m max:10#m category:building;
 	float wall_thickness <- 10#cm;
 	float proba_expand_room parameter:true init:0.9 max:0.99 category:building;
@@ -82,6 +83,8 @@ global {
 				shoulder_length <- P_shoulder_length;
 				avoid_other <- P_avoid_other;
 				proba_detour <- P_proba_detour;
+				tolerance_target <- P_tolerance_target;
+				pedestrian_network <- current_building.network;
 			}
 		}
 		
@@ -123,7 +126,8 @@ global {
 			
 			rooms <- list(room);
 			list<geometry> lines <- generate_pedestrian_network([wall],room,true,false,3.0,0.1,true,0.0,0.0,0.0);
-			create pedestrian_path from: lines { do initialize distance:corridor_size obstacles:[wall]; }
+			
+			create pedestrian_path from: lines collect simplification(each, 0.01) { do initialize distance:corridor_size obstacles:[wall]; }
 			network <- as_edge_graph(pedestrian_path);	
 			
 		}
@@ -210,7 +214,8 @@ global {
 		create building {
 			
 			rooms <- the_rooms;
-			list<geometry> lines <- generate_pedestrian_network([wall],room,true,false,3.0,0.1,true,0.0,0.0,0.0);
+			
+			list<geometry> lines <- generate_pedestrian_network([wall],room,true,false,0.5,0.1,true,0.0,0.0,0.0);
 			create pedestrian_path from: lines { do initialize distance:corridor_size obstacles:[wall]; }
 			network <- as_edge_graph(pedestrian_path);	
 			
@@ -260,9 +265,11 @@ experiment BuildingSetup type: gui {
 
 	output {
 		display "Building" {
+			
 			species room;
 			species door;
 			species wall;
+			//species pedestrian_path aspect: virtual;
 			agents value:agents of_generic_species people;
 		}
 	}
