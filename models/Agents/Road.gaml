@@ -27,3 +27,9 @@ species intersection skills:[skill_road_node] {
 		draw circle(0.5#m) color:inout?#green:#gray;
 	}
 }
+
+species pedestrian_path skills:[pedestrian_road] {
+	aspect virtual {
+		draw self.free_space color:#yellow;
+	}
+}

@@ -72,9 +72,7 @@ global {
 		
 		road_network <- as_driving_graph(road, intersection);
 		
-		write "start generating pedestrian lanes";
-		list<geometry> p_lines <- generate_pedestrian_network([],[],true,false,3.0,0.1,true,0.1,0.0,0.0);
-		write "Pedestrian lane done !";
+		list<geometry> p_lines <- generate_pedestrian_network([],[],true,false,3.0,0.01,true,0.1,0.0,0.0);
 		create pedestrian_path from: p_lines { do initialize distance:2#m; }
 		pedestrian_network <- as_edge_graph(pedestrian_path);	
 			
@@ -92,7 +90,9 @@ global {
 			}
 		} else if (people_type="advanced"){
 			create advanced_people number:number_of_people {
+				write "I am "+self;
 				obstacle_species <- [car, people];
+				pedestrian_network <- myself.pedestrian_network;
 			}
 		}
 		
@@ -155,6 +155,7 @@ experiment CrossRoadSetup type: gui {
 			species car;
 			species simple_people;
 			
+			species pedestrian_path;
 		}
 	}
 }

@@ -78,6 +78,7 @@ species simple_people parent:people skills:[pedestrian] {
 species advanced_people parent:people skills:[escape_pedestrian] {
 	
 	float speed <- 1#m/#s;
+	graph pedestrian_network;
 	
 	reflex move when:not(arrive) {
 		 
@@ -85,7 +86,7 @@ species advanced_people parent:people skills:[escape_pedestrian] {
 			color <- rgb(#blue,rnd(1.0));
 			target <- current_building=nil ? any_location_in(world) : any_location_in(one_of(room - get_current_room()));
 			final_target <- target;
-			do compute_virtual_path pedestrian_graph:current_building.network final_target: final_target ;		
+			do compute_virtual_path pedestrian_graph:pedestrian_network final_target: final_target ;		
 		}
 		
 		if(arrived_at_destination()){ } 

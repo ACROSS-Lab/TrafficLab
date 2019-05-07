@@ -54,9 +54,3 @@ species door {
 		draw shape color:#red;
 	}
 }
-
-species pedestrian_path skills:[pedestrian_road] {
-	aspect virtual {
-		draw self.free_space color:#yellow;
-	}
-}

@@ -9,6 +9,7 @@ model SimpleBuildingSetup
 
 import "Agents/Pedestrian.gaml"
 import "Agents/Building.gaml"
+import "Agents/Road.gaml"
 
 global {
 	
@@ -82,6 +83,7 @@ global {
 				shoulder_length <- P_shoulder_length;
 				avoid_other <- P_avoid_other;
 				proba_detour <- P_proba_detour;
+				pedestrian_network <- current_building.network;
 			}
 		}
 		
