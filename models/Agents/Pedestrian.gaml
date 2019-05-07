@@ -81,28 +81,25 @@ species advanced_people parent:people skills:[escape_pedestrian] {
 	graph pedestrian_network;
 	
 	reflex move when:not(arrive) {
-		 
 		if(target = nil){ 
 			color <- rgb(#blue,rnd(1.0));
 			target <- current_building=nil ? any_location_in(world) : any_location_in(one_of(room - get_current_room()));
 			final_target <- target;
-			do compute_virtual_path pedestrian_graph:pedestrian_network final_target: final_target ;		
+			do compute_virtual_path pedestrian_graph:pedestrian_network  final_target: final_target ;	
 		}
-		
-		if(arrived_at_destination()){ } 
-		else if(length(targets) - current_index = 1){
-			do goto target:target;
-		} else {
+		if(arrived_at_destination()){ 
+			
+		}else {
+			
 			do walk;
 		}
 		
 	}
 	
 	bool arrived_at_destination {
-		if(location distance_to target < 1#m){
+		if(current_target = nil){
 			arrive <- true;
 			target <- nil;
-			final_target <- nil;
 			color <- #red;
 			return true;
 		} 
@@ -118,6 +115,7 @@ species advanced_people parent:people skills:[escape_pedestrian] {
 					draw l color:side_color;
 				}
 				draw cross(0.1,0.1) at:current_target color:#red;
+				if (final_target != nil) {draw cross(0.1,0.1) at:final_target color:#green;}
 				draw ""+int(self) at:current_target+{0.5,0.5,0} color:#red;
 			}
 			match "destination" {

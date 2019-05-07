@@ -90,7 +90,6 @@ global {
 			}
 		} else if (people_type="advanced"){
 			create advanced_people number:number_of_people {
-				write "I am "+self;
 				obstacle_species <- [car, people];
 				pedestrian_network <- myself.pedestrian_network;
 			}
@@ -151,11 +150,10 @@ experiment CrossRoadSetup type: gui {
 			
 			species road;
 			species intersection;
-			
 			species car;
 			species simple_people;
+			species advanced_people;
 			
-			species pedestrian_path;
 		}
 	}
 }
