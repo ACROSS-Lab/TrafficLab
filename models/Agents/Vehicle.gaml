@@ -10,7 +10,7 @@ model Vehicle
 import "Pedestrian.gaml"
 import "Road.gaml"
 
-species vehicle skills:[advanced_driving] {
+species vehicle skills:[driving] {
 	
 	bool autonomous <- true;
 	rgb color <- rnd_color(255);

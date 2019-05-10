@@ -135,7 +135,7 @@ global {
 		create intersection number:number_of_intersections;
 		graph<road,intersection> small_world <- generate_watts_strogatz(intersection, road, 0.04, 2, true);
 		
-		small_world <- layout(small_world, "fruchtermanreingold", 10);
+		//small_world <- layout(small_world, "fruchtermanreingold", 10);
 		//small_world <- layout(small_world, "circle", 10);
 		
 		return small_world.edges;
