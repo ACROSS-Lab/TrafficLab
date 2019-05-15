@@ -7,10 +7,12 @@
 
 model Vehicle
 
-import "Pedestrian.gaml"
-import "Road.gaml"
+import "People.gaml"
+import "../Environments/Environment.gaml"
 
 species vehicle skills:[driving] {
+	
+	environment context;
 	
 	bool autonomous <- true;
 	rgb color <- rnd_color(255);
@@ -20,8 +22,6 @@ species vehicle skills:[driving] {
 	
 	float speed <- 50#km/#h;
 	
-	graph road_network;
-	
 	init {
 		
 		
@@ -30,7 +30,7 @@ species vehicle skills:[driving] {
 		right_side_driving <- true;
 		proba_lane_change_up <- 0.1 + (rnd(500) / 500);
 		proba_lane_change_down <- 0.5 + (rnd(500) / 500);
-		security_distance_coeff <- 5 / 9 * 3.6 * (1.5 - rnd(1000) / 1000);
+		safety_distance_coeff <- 5 / 9 * 3.6 * (1.5 - rnd(1000) / 1000);
 		proba_respect_priorities <- 1.0 - rnd(200 / 1000);
 		proba_respect_stops <- [1.0];
 		proba_block_node <- 0.0;
@@ -66,9 +66,11 @@ species vehicle skills:[driving] {
 	// ------------------------------------------ //
 	
 	reflex autonomous_move when:autonomous {
+		
 		if(final_target = nil){
-			do define_target(any(intersection where each.inout).location);
+			do define_target(context.any_destination(self));
 		}
+		
 		do drive;
 	}
 	
@@ -80,13 +82,13 @@ species vehicle skills:[driving] {
 		do drive;
 		
 		if(driver.arrived_at_destination()){
-			release target:members as:advanced_people in:world;
+			release target:members as:people in:world;
 		}
 	}
 	
 	action define_target(point to_destination){
 		final_target <- to_destination;
-		current_path <- compute_path(road_network, intersection closest_to final_target);
+		current_path <- compute_path(context.road_network, context.road_network.vertices closest_to final_target);
 	}
 	
 }

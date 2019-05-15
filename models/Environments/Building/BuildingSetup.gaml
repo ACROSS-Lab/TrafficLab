@@ -7,9 +7,9 @@
 
 model SimpleBuildingSetup
 
-import "Agents/Pedestrian.gaml"
-import "Agents/Building.gaml"
-import "Agents/Road.gaml"
+import "../../Agents/People.gaml"
+import "../Road.gaml"
+import "Building.gaml"
 
 global {
 	
@@ -49,16 +49,15 @@ global {
 			match "complex" {
 				do create_building();
 			} match "simple" {
-				do create_simple_building();
+				do create_simple_building(world.shape);
 			}
 		}
-		
 				
 		ask building[0] { starting_room <- any(room);}
 		if(people_type = "simple"){
 			create simple_people number:nb_pedestrian with:[
 				location::any_location_in(starting_room),
-				current_building::building[0],
+				current_environment::building[0],
 				the_aspect::pedestrian_aspect
 			]{
 				obstacle_species <- [wall, people];
@@ -73,7 +72,7 @@ global {
 		} else {
 			create advanced_people number:nb_pedestrian with:[
 				location::any_location_in(starting_room),
-				current_building::building[0],
+				current_environment::building[0],
 				the_aspect::pedestrian_aspect
 			]{
 				obstacle_species <- [wall, people];
@@ -85,17 +84,16 @@ global {
 				avoid_other <- P_avoid_other;
 				proba_detour <- P_proba_detour;
 				tolerance_target <- P_tolerance_target;
-				pedestrian_network <- current_building.network;
 			}
 		}
 		
 	}
 	
-	action create_simple_building {
+	action create_simple_building(geometry building_shape) {
 		int room_height <- one_of(2,3,5);
 		
-		point pr_ul <- {0,world.shape.height/2+room_height*2};
-		point pr_br <- {world.shape.width, world.shape.height/2-room_height*2};
+		point pr_ul <- {0,building_shape.height/2+room_height*2};
+		point pr_br <- {building_shape.width, building_shape.height/2-room_height*2};
 		geometry s_building <- rectangle(pr_ul,pr_br);
 		
 		create room from:s_building to_rectangles (2,1){
@@ -128,8 +126,8 @@ global {
 			rooms <- list(room);
 			list<geometry> lines <- generate_pedestrian_network([wall],room,true,false,3.0,0.1,true,0.0,0.0,0.0);
 			
-			create pedestrian_path from: lines collect simplification(each, 0.01) { do initialize distance:corridor_size obstacles:[wall]; }
-			network <- as_edge_graph(pedestrian_path);	
+			create corridor from: lines collect simplification(each, 0.01) { do initialize distance:corridor_size obstacles:[wall]; }
+			pedestrian_network <- as_edge_graph(corridor);	
 			
 		}
 		
@@ -217,8 +215,8 @@ global {
 			rooms <- the_rooms;
 			
 			list<geometry> lines <- generate_pedestrian_network([wall],room,true,false,0.5,0.1,true,0.0,0.0,0.0);
-			create pedestrian_path from: lines { do initialize distance:corridor_size obstacles:[wall]; }
-			network <- as_edge_graph(pedestrian_path);	
+			create corridor from: lines { do initialize distance:corridor_size obstacles:[wall]; }
+			pedestrian_network <- as_edge_graph(corridor);	
 			
 		}
 		
@@ -262,7 +260,7 @@ grid room_cell cell_width:4#m cell_height:4#m neighbors:4 {
 }
 
 
-experiment BuildingSetup type: gui {
+experiment BuildingSetup parent:lab {
 
 	output {
 		display "Building" {

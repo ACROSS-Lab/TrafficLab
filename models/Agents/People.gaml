@@ -7,11 +7,12 @@
 
 model pedestrian
 
-import "Building.gaml"
+import "../Environments/Environment.gaml"
 
 species people virtual:true skills:[moving] {
 	
-	building current_building;
+	environment current_environment;
+	
 	rgb color <- rgb(#green,rnd(1.0));
 	rgb side_color <- rnd_color(255);
 	string the_aspect;
@@ -25,11 +26,11 @@ species people virtual:true skills:[moving] {
 		color <- rgb(#green,rnd(1.0));
 	}
 	
-	room get_current_room {
-		if(current_building = nil){
+	block get_current_place {
+		if(current_environment = nil){
 			return nil;
 		}
-		return current_building.rooms first_with (self overlaps each);
+		return current_environment.current_block(self);
 	}
 	
 	bool arrived_at_destination virtual:true {}
@@ -41,7 +42,7 @@ species simple_people parent:people skills:[pedestrian] {
 	reflex move when:not(arrive) {
 		
 		if(target = nil){
-			target <- current_building=nil ? any_location_in(world) : any_location_in(one_of(room - get_current_room()));
+			target <- current_environment.any_location(self);
 		}
 		
 		do walk target:target; //bounds:current_building.get_free_space();
@@ -78,18 +79,17 @@ species simple_people parent:people skills:[pedestrian] {
 species advanced_people parent:people skills:[escape_pedestrian] {
 	
 	float speed <- 1#m/#s;
-	graph pedestrian_network;
 	
 	reflex move when:not(arrive) {
 		if(target = nil){ 
 			color <- rgb(#blue,rnd(1.0));
-			target <- current_building=nil ? any_location_in(world) : any_location_in(one_of(room - get_current_room()));
+			target <- current_environment.any_location(self);
 			final_target <- target;
-			do compute_virtual_path pedestrian_graph:pedestrian_network  final_target: final_target ;	
+			do compute_virtual_path pedestrian_graph:current_environment.pedestrian_network  final_target: final_target ;	
 		}
 		if(arrived_at_destination()){ 
 			
-		}else {
+		} else {
 			
 			do walk;
 		}

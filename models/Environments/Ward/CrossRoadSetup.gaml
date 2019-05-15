@@ -7,8 +7,9 @@
 
 model CrossRoadSetup
 
-import "Agents/Road.gaml"
-import "Agents/Vehicle.gaml"
+import "../Road.gaml"
+import "../../Agents/Vehicle.gaml"
+import "ward.gaml"
 
 global {
 	
@@ -32,12 +33,14 @@ global {
 	// Two way road probability
 	float two_way_road_proba <- 1.0;
 	
-	graph road_network;
-	graph pedestrian_network;
+	ward env;
 	
 	init {
 		
 		list<geometry> lines;
+		
+		create ward with:[shape::world];
+		env <- ward[0];
 		
 		switch setup {
 			match "simple" {lines <- simple_setup();}
@@ -45,9 +48,9 @@ global {
 			match "complex" {lines <- complex_setup();}
 		}
 		
-		create road from:split_lines(lines) with:[lanes::1];
+		create road from:split_lines(lines) with:[lanes::2];
 		
-		loop p over:as_edge_graph(road).vertices collect each.location{
+		loop p over:as_edge_graph(road).vertices collect each.location {
 			create intersection with:[shape::p] {
 				if(p.x=0 or p.x=world.shape.width or p.y=0 or p.y=world.shape.height) {
 					inout <- true;	
@@ -61,7 +64,7 @@ global {
 				or flip(two_way_road_proba)
 			){
 				create road {
-					lanes <- 1;
+					lanes <- 2;
 					shape <- polyline(reverse(r.shape.points));
 					maxspeed <- r.maxspeed;
 					linked_road <- r;
@@ -70,29 +73,24 @@ global {
 			}
 		}
 		
-		road_network <- as_driving_graph(road, intersection);
+		env.roads <- list<road>(road);
+		env.road_network <- as_driving_graph(road,intersection);
 		
 		list<geometry> p_lines <- generate_pedestrian_network([],[],true,false,3.0,0.01,true,0.1,0.0,0.0);
-		create pedestrian_path from: p_lines { do initialize distance:2#m; }
-		pedestrian_network <- as_edge_graph(pedestrian_path);	
-			
+		create corridor from: p_lines { do initialize distance:2#m; }
 		
-		create car number:number_of_vehicles {
-			road r <- any(road);
-			location <- any_location_in(r);
-			// current_road <- r; // TODO : why there is a bug with this ?
-			road_network <- myself.road_network;
+		env.pedestrian_network <- as_edge_graph(corridor);	
+			
+		create car number:number_of_vehicles with:[context::env] {
+			location <- context.any_location(self); 
 		}
 		
 		if(people_type="simple"){
-			create simple_people number:number_of_people {
-				obstacle_species <- [car];
-			}
+			create simple_people number:number_of_people with:[obstacle_species::[car]];
 		} else if (people_type="advanced"){
-			create advanced_people number:number_of_people {
-				obstacle_species <- [car, people];
-				pedestrian_network <- myself.pedestrian_network;
-			}
+			create advanced_people number:number_of_people with:[
+				obstacle_species::[car, people], current_environment::env
+			];
 		}
 		
 		
@@ -143,7 +141,7 @@ global {
 	
 }
 
-experiment CrossRoadSetup type: gui {
+experiment CrossRoadSetup parent:lab{
 	
 	output {
 		display main {
