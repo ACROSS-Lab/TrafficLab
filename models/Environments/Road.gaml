@@ -9,6 +9,8 @@ model Road
 
 import "Environment.gaml"
 
+import "../Agents/Vehicle.gaml"
+
 species road skills:[skill_road] parent:block {
 	
 	init {

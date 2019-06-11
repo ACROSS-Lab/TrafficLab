@@ -7,8 +7,8 @@
 
 model City
 
-import "../Environment.gaml"
-import "../Ward/ward.gaml"
+import "Environment.gaml"
+import "Ward.gaml"
 
 species city parent:environment {
 	

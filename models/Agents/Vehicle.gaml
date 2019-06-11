@@ -10,7 +10,7 @@ model Vehicle
 import "People.gaml"
 import "../Environments/Environment.gaml"
 
-species vehicle skills:[driving] {
+species vehicle skills:[advanced_driving] {
 	
 	environment context;
 	
@@ -110,6 +110,6 @@ species moto parent:vehicle {
 	
 }
 
-species bus skills:[escape_publictransport_skill]  parent:vehicle {
+species bus skills:[escape_publictransport_skill] parent:vehicle {
 	
 }

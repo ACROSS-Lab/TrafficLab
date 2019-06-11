@@ -7,23 +7,20 @@
 
 model CrossRoadSetup
 
-import "../Road.gaml"
-import "../../Agents/Vehicle.gaml"
-import "ward.gaml"
+import "Environments/Road.gaml"
+import "Environments/Ward.gaml"
+import "Agents/Vehicle.gaml"
+import "AbstractLab.gaml"
 
 global {
 	
-	bool debug_mode <- true;
+	bool debug_mode <- true; 
 	
-	int number_of_people parameter:true init:20 min:0 max:100 category:pedestrian;
-	string people_type parameter:true among:["simple","advanced"] init:"advanced" category:pedestrian;
-	string pedestrian_aspect <- "default" parameter:true among:["default","path","destrination"] category:pedestrian;
-	
-	string setup <- "simple" parameter:true among:["simple", "multiple", "complex"] category:"transport system";
-	int number_of_intersections parameter:true init:20 min:5 category:"transport system";
+	string setup parameter:true init:"simple" among:["simple", "multiple", "complex"] category:"Transport system";
+	int number_of_intersections parameter:true init:20 min:5 category:"Transport system";
 	
 	int number_of_vehicles parameter:true init:20 min:2 max:100 category:vehicle;
-	bool autonomous_vehicles parameter:true init:true category:vehicle;
+	bool autonomous_vehicles init:true category:vehicle;
 	
 	// Multiple args
 	int x_lain_nb <- 8;
@@ -32,8 +29,6 @@ global {
 	float scale_free_proba;
 	// Two way road probability
 	float two_way_road_proba <- 1.0;
-	
-	ward env;
 	
 	init {
 		
@@ -73,7 +68,7 @@ global {
 			}
 		}
 		
-		env.roads <- list<road>(road);
+		ward(env).roads <- list<road>(road);
 		env.road_network <- as_driving_graph(road,intersection);
 		
 		list<geometry> p_lines <- generate_pedestrian_network([],[],true,false,3.0,0.01,true,0.1,0.0,0.0);
@@ -85,12 +80,15 @@ global {
 			location <- context.any_location(self); 
 		}
 		
-		if(people_type="simple"){
-			create simple_people number:number_of_people with:[obstacle_species::[car]];
-		} else if (people_type="advanced"){
-			create advanced_people number:number_of_people with:[
-				obstacle_species::[car, people], current_environment::env
-			];
+		ask people {
+			switch species_of(self) {
+				match simple_people {
+					simple_people(self).obstacle_species << car;
+				}
+				match advanced_people {
+					advanced_people(self).obstacle_species << car;
+				} 
+			}
 		}
 		
 		
@@ -141,7 +139,7 @@ global {
 	
 }
 
-experiment CrossRoadSetup parent:lab{
+experiment CrossRoadSetup parent:lab {
 	
 	output {
 		display main {
@@ -151,6 +149,19 @@ experiment CrossRoadSetup parent:lab{
 			species car;
 			species simple_people;
 			species advanced_people;
+			
+		}
+	}
+}
+
+experiment CrossRoadVehicleOnly parent:vehcile_lab {
+	
+	output {
+		display main {
+			
+			species road;
+			species intersection;
+			species car;
 			
 		}
 	}
