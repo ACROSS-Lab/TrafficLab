@@ -7,7 +7,7 @@
 
 model Building
 
-import "../Environment.gaml"
+import "Environment.gaml"
 
 species building parent:environment {
 	

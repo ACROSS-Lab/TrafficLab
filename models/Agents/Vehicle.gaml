@@ -10,7 +10,7 @@ model Vehicle
 import "People.gaml"
 import "../Environments/Environment.gaml"
 
-species vehicle skills:[driving] {
+species vehicle skills:[advanced_driving] {
 	
 	environment context;
 	
@@ -20,26 +20,9 @@ species vehicle skills:[driving] {
 	people driver;
 	int capacity;
 	
-	float speed <- 50#km/#h;
+	float vehicle_width;
 	
-	init {
-		
-		
-		max_speed <- 80 #km / #h;
-		vehicle_length <- 5.0 #m;
-		right_side_driving <- true;
-		proba_lane_change_up <- 0.1 + (rnd(500) / 500);
-		proba_lane_change_down <- 0.5 + (rnd(500) / 500);
-		safety_distance_coeff <- 5 / 9 * 3.6 * (1.5 - rnd(1000) / 1000);
-		proba_respect_priorities <- 1.0 - rnd(200 / 1000);
-		proba_respect_stops <- [1.0];
-		proba_block_node <- 0.0;
-		proba_use_linked_road <- 0.0;
-		max_acceleration <- 5 / 3.6;
-		speed_coeff <- 1.2 - (rnd(400) / 1000);
-		
-		
-	}
+	float speed <- 50#km/#h;
 	
 	// ----------- CAPTION PASSENGER ------------ //
 	
@@ -88,7 +71,27 @@ species vehicle skills:[driving] {
 	
 	action define_target(point to_destination){
 		final_target <- to_destination;
-		current_path <- compute_path(context.road_network, context.road_network.vertices closest_to final_target);
+		current_path <- compute_path(context.road_network, 
+			context.road_network.vertices closest_to final_target,
+			on_road::road closest_to self
+		);
+	}
+	
+	// -------------------------------------------- //
+	
+	// Display purpose position on lanes
+	point calcul_loc {
+		if (current_road = nil) {
+			return location;
+		} else {
+			float val <- first(road(current_road).shape.points) distance_to first(road(current_road).lanes_shape[current_lane].points);
+			val <- on_linked_road ? val * - 1 : val;
+			if (val = 0) {
+				return location; 
+			} else {
+				return (location + {cos(heading + 90) * val, sin(heading + 90) * val});
+			}
+		}
 	}
 	
 }
@@ -100,8 +103,11 @@ species car parent:vehicle {
 	}
 	
 	aspect default {
-		//draw shape color:color rotate:heading; // use heading cause simulation to stop
-		draw rectangle(1.5#m,4#m) rotate:heading+90 color:color;
+		draw rectangle(vehicle_width,vehicle_length) rotate:heading+90 color:color;
+	}
+	
+	aspect base {
+		draw rectangle(vehicle_width,vehicle_length) rotate:heading+90 color:color at:calcul_loc();
 	}
 	
 }
@@ -110,6 +116,6 @@ species moto parent:vehicle {
 	
 }
 
-species bus skills:[escape_publictransport_skill]  parent:vehicle {
+species bus skills:[escape_publictransport_skill] parent:vehicle {
 	
 }

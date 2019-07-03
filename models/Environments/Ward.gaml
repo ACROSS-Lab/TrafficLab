@@ -7,12 +7,12 @@
 
 model ward
 
-import "../Environment.gaml"
-import "../Building/Building.gaml"
-import "../Road.gaml"
+import "Environment.gaml"
+import "Building.gaml"
+import "Road.gaml"
 
-import "../../Agents/People.gaml"
-import "../../Agents/Vehicle.gaml"
+import "../Agents/People.gaml"
+import "../Agents/Vehicle.gaml"
 
 species ward parent:environment {
 	

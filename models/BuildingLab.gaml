@@ -7,28 +7,14 @@
 
 model SimpleBuildingSetup
 
-import "../../Agents/People.gaml"
-import "../Road.gaml"
-import "Building.gaml"
+import "Agents/People.gaml"
+import "Environments/Road.gaml"
+import "Environments/Building.gaml"
+import "AbstractLab.gaml"
 
 global {
 	
 	bool debug_mode <- false parameter:true category:"display";
-	string pedestrian_aspect <- "default" parameter:true among:["default","path","destination"] category:"display";
-	
-	// Pedestrian skill parameters
-	string people_type parameter:true among:["simple","advanced"] init:"advanced" category:pedestrian;
-	int nb_pedestrian parameter:true init:10 min:0 category:pedestrian;
-	float corridor_size parameter:true init:2.0 min:0.0 max:3#m category:pedestrian;
-	float P_obstacle_distance_repulsion_coeff <- 1.0 parameter: true category:pedestrian;
-	float P_obstacle_repulsion_intensity <- 2.0 parameter: true category:pedestrian;
-	float P_overlapping_coefficient <- 2.0 parameter: true category:pedestrian;
-	float P_perception_sensibility <- 1.0 parameter: true category:pedestrian;
-	float P_shoulder_length <- 0.5 parameter: true category:pedestrian;
-	float P_tolerance_target <- 0.1 parameter: true category:pedestrian;
-	float P_proba_detour <- 0.5 parameter: true category:pedestrian;
-	bool P_avoid_other <- true parameter: true category:pedestrian;
-	
 	
 	// Building parameters
 	string building_type parameter:true among:["simple","complex"] init:"complex" category:building;
@@ -41,49 +27,27 @@ global {
 	
 	geometry shape <- square(world_size);
 	
-	room starting_room;
-	
 	init{
 		
 		switch building_type {
 			match "complex" {
 				do create_building();
-			} match "simple" {
+			} 
+			match "simple" {
 				do create_simple_building(world.shape);
 			}
 		}
-				
-		ask building[0] { starting_room <- any(room);}
-		if(people_type = "simple"){
-			create simple_people number:nb_pedestrian with:[
-				location::any_location_in(starting_room),
-				current_environment::building[0],
-				the_aspect::pedestrian_aspect
-			]{
-				obstacle_species <- [wall, people];
-				obstacle_distance_repulsion_coeff <- P_obstacle_distance_repulsion_coeff;
-				obstacle_repulsion_intensity <-P_obstacle_repulsion_intensity;
-				overlapping_coefficient <- P_overlapping_coefficient;
-				perception_sensibility <- P_perception_sensibility ;
-				shoulder_length <- P_shoulder_length;
-				avoid_other <- P_avoid_other;
-				proba_detour <- P_proba_detour;
-			}
-		} else {
-			create advanced_people number:nb_pedestrian with:[
-				location::any_location_in(starting_room),
-				current_environment::building[0],
-				the_aspect::pedestrian_aspect
-			]{
-				obstacle_species <- [wall, people];
-				obstacle_distance_repulsion_coeff <- P_obstacle_distance_repulsion_coeff;
-				obstacle_repulsion_intensity <-P_obstacle_repulsion_intensity;
-				overlapping_coefficient <- P_overlapping_coefficient;
-				perception_sensibility <- P_perception_sensibility ;
-				shoulder_length <- P_shoulder_length;
-				avoid_other <- P_avoid_other;
-				proba_detour <- P_proba_detour;
-				tolerance_target <- P_tolerance_target;
+		
+		env <- building[0];
+		
+		ask people {
+			switch species_of(self) {
+				match simple_people {
+					simple_people(self).obstacle_species << wall;
+				}
+				match advanced_people {
+					advanced_people(self).obstacle_species << wall;
+				} 
 			}
 		}
 		

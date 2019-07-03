@@ -7,23 +7,20 @@
 
 model CrossRoadSetup
 
-import "../Road.gaml"
-import "../../Agents/Vehicle.gaml"
-import "ward.gaml"
+import "Environments/Road.gaml"
+import "Environments/Ward.gaml"
+import "Agents/Vehicle.gaml"
+import "AbstractLab.gaml"
 
 global {
 	
-	bool debug_mode <- true;
+	bool debug_mode <- true; 
 	
-	int number_of_people parameter:true init:20 min:0 max:100 category:pedestrian;
-	string people_type parameter:true among:["simple","advanced"] init:"advanced" category:pedestrian;
-	string pedestrian_aspect <- "default" parameter:true among:["default","path","destrination"] category:pedestrian;
-	
-	string setup <- "simple" parameter:true among:["simple", "multiple", "complex"] category:"transport system";
-	int number_of_intersections parameter:true init:20 min:5 category:"transport system";
+	string setup parameter:true init:"simple" among:["simple", "multiple", "complex"] category:"Transport system";
+	int number_of_intersections parameter:true init:20 min:5 category:"Transport system";
 	
 	int number_of_vehicles parameter:true init:20 min:2 max:100 category:vehicle;
-	bool autonomous_vehicles parameter:true init:true category:vehicle;
+	bool autonomous_vehicles init:true category:vehicle;
 	
 	// Multiple args
 	int x_lain_nb <- 8;
@@ -32,8 +29,6 @@ global {
 	float scale_free_proba;
 	// Two way road probability
 	float two_way_road_proba <- 1.0;
-	
-	ward env;
 	
 	init {
 		
@@ -48,7 +43,7 @@ global {
 			match "complex" {lines <- complex_setup();}
 		}
 		
-		create road from:split_lines(lines) with:[lanes::2];
+		create road from:split_lines(lines) with:[lanes::2,maxspeed::50#km/#h];
 		
 		loop p over:as_edge_graph(road).vertices collect each.location {
 			create intersection with:[shape::p] {
@@ -73,7 +68,9 @@ global {
 			}
 		}
 		
-		env.roads <- list<road>(road);
+		ask road {display_shape <- compute_display_shape();}
+		
+		ward(env).roads <- list<road>(road);
 		env.road_network <- as_driving_graph(road,intersection);
 		
 		list<geometry> p_lines <- generate_pedestrian_network([],[],true,false,3.0,0.01,true,0.1,0.0,0.0);
@@ -82,15 +79,36 @@ global {
 		env.pedestrian_network <- as_edge_graph(corridor);	
 			
 		create car number:number_of_vehicles with:[context::env] {
-			location <- context.any_location(self); 
+			
+			location <- context.any_location(self);
+			
+			max_speed <- C_max_speed;
+			vehicle_length <- C_length;
+			vehicle_width <- C_width;
+			max_acceleration <- C_max_acceleration;
+			speed_coeff <- C_speed_coeff;
+			
+			right_side_driving <- V_right_side_driving;
+			proba_lane_change_up <- V_proba_lane_change_up;
+			proba_lane_change_down <- V_proba_lane_change_down;
+			safety_distance_coeff <- V_safety_distance_coeff;
+			proba_respect_priorities <- V_proba_respect_priorities;
+			proba_respect_stops <- V_proba_respect_stops;
+			proba_block_node <- V_proba_block_node;
+			proba_use_linked_road <- V_proba_use_linked_road;
+			
+			 
 		}
 		
-		if(people_type="simple"){
-			create simple_people number:number_of_people with:[obstacle_species::[car]];
-		} else if (people_type="advanced"){
-			create advanced_people number:number_of_people with:[
-				obstacle_species::[car, people], current_environment::env
-			];
+		ask people {
+			switch species_of(self) {
+				match simple_people {
+					simple_people(self).obstacle_species << car;
+				}
+				match advanced_people {
+					advanced_people(self).obstacle_species << car;
+				} 
+			}
 		}
 		
 		
@@ -141,7 +159,7 @@ global {
 	
 }
 
-experiment CrossRoadSetup parent:lab{
+experiment CrossRoadSetup parent:lab {
 	
 	output {
 		display main {
@@ -151,6 +169,19 @@ experiment CrossRoadSetup parent:lab{
 			species car;
 			species simple_people;
 			species advanced_people;
+			
+		}
+	}
+}
+
+experiment CrossRoadVehicleOnly parent:vehcile_lab {
+	
+	output {
+		display main {
+			
+			species road aspect:base;
+			species intersection;
+			species car aspect:base;
 			
 		}
 	}
