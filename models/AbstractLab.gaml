@@ -13,6 +13,7 @@ import "Agents/People.gaml"
 global {
 	
 	environment env;
+	point world_size <- {100,100};
 	
 	// ------- //
 	// VEHICLE //
@@ -33,6 +34,13 @@ global {
 	float V_proba_block_node <- 0.0;
 	float V_proba_use_linked_road <- 0.0;
 	
+	// ---------------- //
+	// PUBLIC TRANSPORT //
+	// ---------------- //
+	
+	string bus_dir <- ">>";
+	float base_bus_speed <- 40 #km/#h;
+	list<rgb> bus_palette <- brewer_colors("Set3",12);
 	
 	// ------ //
 	// PEOPLE //

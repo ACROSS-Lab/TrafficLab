@@ -10,6 +10,7 @@ model Road
 import "Environment.gaml"
 
 import "../Agents/Vehicle.gaml"
+import "BusLine.gaml"
 
 species road skills:[skill_road] parent:block {
 	
@@ -71,6 +72,11 @@ species intersection skills:[skill_road_node] parent:block {
 	aspect default {
 		draw circle(0.5#m) color:inout?#green:#gray;
 	}
+}
+
+species bus_stop parent:intersection {
+	string name;
+	list<bus_line> bus_lines;
 }
 
 species corridor skills:[pedestrian_road] parent:block {

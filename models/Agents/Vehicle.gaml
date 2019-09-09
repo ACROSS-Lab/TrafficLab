@@ -57,7 +57,7 @@ species vehicle skills:[advanced_driving] {
 		do drive;
 	}
 	
-	reflex move when:driver != nil {
+	reflex move when:!autonomous and driver != nil {
 		if(final_target = nil){
 			do define_target(driver.target);
 		}
@@ -117,5 +117,20 @@ species moto parent:vehicle {
 }
 
 species bus skills:[escape_publictransport_skill] parent:vehicle {
+	// Quid of capture/release ?
+	string line_name;
+	list<people> passengers;
+	
+	init {
+		vehicle_width <- 3#m;
+		capacity <- 30;
+		autonomous <- true;
+	}
+	
+	action define_target(point to_destination) {
+		do define_next_target;
+		current_path <- compute_path(graph: context.road_network, target: next_stop);
+		if(current_path = nil) { write "WARNING: nil current path : " + bus_line + ";" + location + ";" + next_stop; }
+	}
 	
 }
