@@ -32,7 +32,7 @@ global {
 	// Two way road probability
 	float two_way_road_proba <- 1.0;
 	
-	geometry shape <- rectangle(world_size);
+	geometry shape <- envelope(rectangle(world_size));
 	
 	init {
 		
@@ -47,10 +47,10 @@ global {
 			match "complex" {lines <- complex_setup();}
 		}
 		
-		create road from:split_lines(lines) with:[lanes::2,maxspeed::50#km/#h];
+		create road from:split_lines(lines) with:[env::env,lanes::2,maxspeed::50#km/#h];
 		
 		loop p over:as_edge_graph(road).vertices collect each.location {
-			create intersection with:[shape::p] {
+			create intersection with:[env::env,shape::p] {
 				if(p.x=0 or p.x=world.shape.width or p.y=0 or p.y=world.shape.height) {
 					inout <- true;	
 				}
@@ -62,12 +62,10 @@ global {
 			if(r.shape.points one_matches ((intersection collect each.location) contains (each))
 				or flip(two_way_road_proba)
 			){
-				create road {
-					lanes <- 2;
-					shape <- polyline(reverse(r.shape.points));
-					maxspeed <- r.maxspeed;
-					linked_road <- r;
-					r.linked_road <- self;
+				create road with:[env::r.env,lanes::r.lanes,
+					shape::polyline(reverse(r.shape.points)),maxspeed::r.maxspeed
+				]{
+					linked_road <- r; r.linked_road <- self;
 				}
 			}
 		}
@@ -79,10 +77,14 @@ global {
 		
 		// INIT PUBLIC TRANSPORT
 		if setup != "simple" and nb_bus_lines > 0 {
-			do generate_public_transport;
+			int bl <- 1;
+			map<string,rgb> bus_lines;
+			loop times:nb_bus_lines { add bus_palette[bl-1] to:bus_lines at:string(bl); bl <- bl + 1;}
+			env.road_network <- generate_public_transport(env.road_network,bus_lines,debug_mode::true);
 		}
 		
-		list<geometry> p_lines <- generate_pedestrian_network([],[],true,false,3.0,0.01,true,0.1,0.0,0.0);
+		bool small_coridor <- true;
+		list<geometry> p_lines <- generate_pedestrian_network([],small_coridor ? road collect (each buffer 2#m) : [],true,false,3.0,0.001,true,0.1,0.0,0.0);
 		create corridor from: p_lines { do initialize distance:2#m; }
 		
 		env.pedestrian_network <- as_edge_graph(corridor);	
@@ -132,6 +134,14 @@ global {
 	
 	// Several cross roads
 	list<geometry> multiple_setup {
+		
+		if(number_of_intersections > 21) {
+			loop while: number_of_intersections - ((x_lain_nb - 1) * (y_lain_nb - 1)) > 0 {
+				if flip(1 - y_lain_nb / (y_lain_nb + x_lain_nb)) {y_lain_nb <- y_lain_nb + 1;}
+				else {x_lain_nb <- x_lain_nb + 1;}
+			}
+		}
+		
 		float x_length <- shape.width/x_lain_nb;
 		float y_length <- shape.height/y_lain_nb;
 		
@@ -162,105 +172,6 @@ global {
 		return small_world.edges;
 	}
 	
-	// ---------------- //
-	// public transport //
-	// ---------------- //
-	
-	action generate_public_transport {
-		
-		if debug_mode {write "Start generating public transport from scratch";}
-		
-		list<point> in_out <- intersection where each.inout collect each.location;
-			
-		// Create bus lines
-		map<string,path> bus_lines;
-		int bus_line_nb <- 1;
-		loop times:nb_bus_lines {
-			point start <- any(in_out);
-			in_out >- start;
-			point end <- any(in_out);
-			in_out >- end;
-			add path_between(env.road_network,start,end) at:string(bus_line_nb) to:bus_lines;
-			bus_line_nb <- bus_line_nb + 1;
-		}
-		
-		if debug_mode {write "Defined "+length(bus_lines)+" : 
-			\n"+bus_lines.pairs collect (each.key+" with total length of "+each.value.distance+"m\n");
-		}
-		
-		// Create bus stops
-		map<string, list<point>> bus_stops;
-		loop bl over:bus_lines.keys {
-			path the_path <- bus_lines[bl];
-			list<point> bus_line_stops <- [the_path.source];
-			loop r from:1 to:length(the_path.segments)-2 {
-				if flip(0.4) { bus_line_stops <+ any_location_in(the_path.segments[r]); }
-			}
-			bus_line_stops <+ the_path.target;
-			add bus_line_stops at:bl to:bus_stops;
-		}
-		
-		if debug_mode {write "Defined bus stops : \n"
-			+bus_stops.pairs collect (each.key+" => "+length(each.value)+"\n");
-		}
-		
-		list<date> departure_times;
-		date bd <- #epoch;
-		loop h over:[6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] {
-			loop m over:[0,20,40] { departure_times <+ date([bd.year,bd.month,bd.days_in_month,h,m,0]); }
-		}
-
-		// update graph with new intersections (bus stops) 		
-		env.road_network <- as_driving_graph(road, intersection+bus_stop);
-		
-		// Create bus schedule
-		int bus_iter <- 0;
-		loop bl over:bus_stops.keys {
-			path line_path <- bus_lines[bl];
-			float line_time <- line_path.distance / base_bus_speed * 1.2; // Add some delay 1.2
-			
-			if debug_mode {write "Start loading bus line "+bl
-				+" [len="+line_path.distance+";stops="+length(bus_stops[bl])+";time="+line_time+"]";
-			}
-			
-			// Time between stops
-			map<point,float> bs_time; 
-			list<point> b_stops <- bus_stops[bl];
-			loop ip from:1 to:length(b_stops)-1 {
-				float l <- topology(env.road_network) distance_between [b_stops[ip-1],b_stops[ip]];
-				add l / line_path.distance * line_time at:b_stops[ip] to:bs_time;
-			}
-			
-			// BUS LINE = NAME + ">>"
-			create bus_line with:[name::bl+bus_dir,color::bus_palette[bus_iter],
-				the_stops::b_stops as_map (bl+">>"+b_stops index_of each :: each),
-				the_path::line_path
-			] {
-				do setup_schedule(bs_time,departure_times);
-			}
-			
-			// Reverse time between stops
-			map<point,float> r_bs_time <- [last(bs_time.keys)::0];
-			list<float> reverse_time <- reverse(copy(bs_time.values));
-			list<point> reverse_bus_stop <- reverse(copy(b_stops)); 
-			int iter;
-			loop ip over:reverse_bus_stop where each != last(b_stops) {
-				add reverse_time[iter] at:ip to:r_bs_time;
-				iter <- iter + 1;
-			}
-			
-			// BUS LINE = ">>" + NAME
-			path reverse_line <- path_between(env.road_network, point(last(line_path.vertices)), point(first(line_path.vertices)));
-			create bus_line with:[name::bus_dir+bl,color::bus_palette[bus_iter],
-				the_stops::reverse_bus_stop as_map (bl+"<<"+reverse_bus_stop index_of each :: each),
-				the_path::reverse_line
-			] {
-				do setup_schedule(r_bs_time,departure_times);
-			}
-			
-			bus_iter <- bus_iter + 1;
-		}
-	}
 }
 
 experiment CrossRoadSetup parent:lab {
@@ -299,6 +210,7 @@ experiment WardPublicTransport parent:vehicle_lab {
 	
 	output {
 		display main {
+			species bus_line;
 			species bus_stop;
 			species road;
 			species bus;

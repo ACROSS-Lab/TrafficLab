@@ -22,10 +22,9 @@ global {
 	float wall_thickness <- 10#cm;
 	float proba_expand_room parameter:true init:0.9 max:0.99 category:building;
 	
-	float world_size <- 100#m;
 	float step <- 1#s/10;
 	
-	geometry shape <- square(world_size);
+	geometry shape <- square(int(world_size.x*world_size.y/2));
 	
 	init{
 		

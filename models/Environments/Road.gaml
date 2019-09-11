@@ -20,9 +20,18 @@ species road skills:[skill_road] parent:block {
 	
 	list<geometry> lanes_shape;
 	
+	// ------ block ------ //
+	
 	bool contains_agent(agent the_agent){
 		return all_agents contains the_agent;
 	}
+	
+	list<road> neighboors {
+		return (env.road_network in_edges_of source_node 
+			+ env.road_network out_edges_of target_node) collect road(each);
+	}
+	
+	// ------------------- //
 	
 	geometry compute_display_shape {
 		
@@ -69,6 +78,11 @@ species intersection skills:[skill_road_node] parent:block {
 		return self distance_to the_agent < 2#m;
 	}
 	
+	list<intersection> neighboors {
+		return remove_duplicates(roads_in collect intersection(road(each).source_node) 
+			+ roads_out collect intersection(road(each).target_node));
+	}
+	
 	aspect default {
 		draw circle(0.5#m) color:inout?#green:#gray;
 	}
@@ -76,13 +90,24 @@ species intersection skills:[skill_road_node] parent:block {
 
 species bus_stop parent:intersection {
 	string name;
+	road on_road;
 	list<bus_line> bus_lines;
+	
+	aspect default {
+		loop bl over:bus_lines {
+			draw circle(10#m + bus_lines index_of bl) color:blend(bl.color,#black,0.8) border:#black;
+		}
+	}
 }
 
 species corridor skills:[pedestrian_road] parent:block {
 	
 	bool contains_agent(agent the_agent){
 		return agents_on contains the_agent;
+	}
+	
+	list<corridor> neighboors {
+		return corridor where (each.shape.points contains_any shape.points);
 	}
 	
 	aspect virtual {

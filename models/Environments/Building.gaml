@@ -66,6 +66,10 @@ species room parent:block {
 		return self overlaps the_agent;
 	}
 	
+	list<room> neighboors {
+		return room where (each.walls contains_any walls);
+	}
+	
 	aspect default {
 		draw shape color:color border:#transparent;
 	}

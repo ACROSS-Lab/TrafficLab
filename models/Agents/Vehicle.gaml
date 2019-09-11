@@ -9,6 +9,7 @@ model Vehicle
 
 import "People.gaml"
 import "../Environments/Environment.gaml"
+import "../AbstractLab.gaml"
 
 species vehicle skills:[advanced_driving] {
 	
@@ -125,6 +126,7 @@ species bus skills:[escape_publictransport_skill] parent:vehicle {
 		vehicle_width <- 3#m;
 		capacity <- 30;
 		autonomous <- true;
+		speed <- base_bus_speed * (1+rnd(1.0));
 	}
 	
 	action define_target(point to_destination) {

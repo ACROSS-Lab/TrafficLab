@@ -39,7 +39,7 @@ global {
 	// ---------------- //
 	
 	string bus_dir <- ">>";
-	float base_bus_speed <- 40 #km/#h;
+	float base_bus_speed <- 20 #km/#h;
 	list<rgb> bus_palette <- brewer_colors("Set3",12);
 	
 	// ------ //
