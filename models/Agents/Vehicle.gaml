@@ -72,10 +72,26 @@ species vehicle skills:[advanced_driving] {
 	
 	action define_target(point to_destination){
 		final_target <- to_destination;
+		
+		write "[vehicle>>define_target] "+sample(road closest_to self);
+		write "[vehicle>>define_target] "+sample(road first_with (each overlaps to_destination));
+		
+		path test_path <- path_between(context.road_network,
+			(road closest_to self).target_node,to_destination
+		);
+		
+		write "[vehicle>>define_target] "+sample(test_path);
+		
 		current_path <- compute_path(context.road_network, 
 			context.road_network.vertices closest_to final_target,
 			on_road::road closest_to self
 		);
+	}
+	
+	abort {
+		if current_road != nil {
+			ask road(current_road) {do unregister agent:myself;}
+		}
 	}
 	
 	// -------------------------------------------- //
@@ -100,7 +116,7 @@ species vehicle skills:[advanced_driving] {
 species car parent:vehicle { 
 	
 	init {
-		//shape <- rectangle(1.5#m,4#m);
+		//shape <- rectangle(vehicle_width,vehicle_length);
 	}
 	
 	aspect default {
@@ -119,11 +135,12 @@ species moto parent:vehicle {
 
 species bus skills:[escape_publictransport_skill] parent:vehicle {
 	// Quid of capture/release ?
-	string line_name;
+	
 	list<people> passengers;
 	
 	init {
 		vehicle_width <- 3#m;
+		vehicle_length <- 9#m;
 		capacity <- 30;
 		autonomous <- true;
 		speed <- base_bus_speed * (1+rnd(1.0));
@@ -131,8 +148,19 @@ species bus skills:[escape_publictransport_skill] parent:vehicle {
 	
 	action define_target(point to_destination) {
 		do define_next_target;
-		current_path <- compute_path(graph: context.road_network, target: next_stop);
-		if(current_path = nil) { write "WARNING: nil current path : " + bus_line + ";" + location + ";" + next_stop; }
+		if next_stop != nil {
+			if final_target = nil {
+				final_target <- next_stop;
+				current_path <- compute_path(graph: context.road_network, target: next_stop);
+				if(current_path = nil) { error "WARNING: nil current path : " + transport_line + ";" + location + ";" + next_stop; }
+			} else {
+				do is_time_to_go();
+			}
+		}
+	}
+	
+	aspect big {
+		draw rectangle(vehicle_width*2,vehicle_length*2) rotate:heading+90 color:color;
 	}
 	
 }

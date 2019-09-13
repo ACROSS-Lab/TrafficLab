@@ -9,19 +9,21 @@ model CrossRoadSetup
 
 import "Environments/Road.gaml"
 import "Environments/Ward.gaml"
+import "Environments/BusLine.gaml"
 import "Agents/Vehicle.gaml"
 import "AbstractLab.gaml"
 
 global {
 	
-	bool debug_mode <- true; 
+	bool debug_mode <- false; 
+	float seed <- 1233445;
 	
 	string setup parameter:true init:"simple" among:["simple", "multiple", "complex"] category:"Transport system";
 	int number_of_intersections parameter:true init:20 min:5 category:"Transport system";
 	
 	int nb_bus_lines parameter:true init:0 max:12 category:"Public transport";
 	
-	int number_of_vehicles parameter:true init:20 min:2 max:100 category:vehicle;
+	int number_of_vehicles parameter:true init:20 min:0 max:100 category:vehicle;
 	bool autonomous_vehicles init:true category:vehicle;
 	
 	// Multiple args
@@ -58,8 +60,9 @@ global {
 		}
 		
 		// Two way road
+		list<point> inout <- intersection where each.inout collect each.location;
 		loop r over:road {
-			if(r.shape.points one_matches ((intersection collect each.location) contains (each))
+			if(r.shape.points one_matches (inout contains (each))
 				or flip(two_way_road_proba)
 			){
 				create road with:[env::r.env,lanes::r.lanes,
@@ -70,18 +73,21 @@ global {
 			}
 		}
 		
-		ask road {display_shape <- compute_display_shape();}
-		
 		ward(env).roads <- list<road>(road);
-		env.road_network <- as_driving_graph(road,intersection);
 		
 		// INIT PUBLIC TRANSPORT
 		if setup != "simple" and nb_bus_lines > 0 {
 			int bl <- 1;
 			map<string,rgb> bus_lines;
 			loop times:nb_bus_lines { add bus_palette[bl-1] to:bus_lines at:string(bl); bl <- bl + 1;}
-			env.road_network <- generate_public_transport(env.road_network,bus_lines,debug_mode::true);
+			env.road_network <- generate_public_transport(road,intersection,bus_lines,debug_mode::debug_mode);
+		} else {
+			env.road_network <- as_driving_graph(road,intersection);
 		}
+		
+		ask road {display_shape <- compute_display_shape();}
+		
+		if road one_matches (each.lanes = nil){ error sample(road first_with (each.lanes = nil)); }
 		
 		bool small_coridor <- true;
 		list<geometry> p_lines <- generate_pedestrian_network([],small_coridor ? road collect (each buffer 2#m) : [],true,false,3.0,0.001,true,0.1,0.0,0.0);
@@ -205,15 +211,16 @@ experiment CrossRoadVehicleOnly parent:vehcile_lab {
 experiment WardPublicTransport parent:vehicle_lab {
 
 	parameter "bus line number" var:nb_bus_lines init:3 min:0 max:12 category:"Public transport";
+	parameter "nb cars" var:number_of_vehicles init:0 category:vehicle;
 	parameter "setup" var:setup init:"multiple" category:"Transport system";
 	parameter "world size" var:world_size init:{2000,2000} category:"Global";
 	
 	output {
 		display main {
-			species bus_line;
-			species bus_stop;
+			species bus_line aspect:big;
+			species bus_stop aspect:big;
 			species road;
-			species bus;
+			species bus aspect:big;
 		}
 	}
 	
