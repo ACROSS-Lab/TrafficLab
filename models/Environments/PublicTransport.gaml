@@ -5,7 +5,7 @@
 * Tags: Trafic, Public transport, Bus
 ***/
 
-model BusLine
+model PublicTransport
 
 import "../Agents/Vehicle.gaml"
 
@@ -43,8 +43,12 @@ global {
 			add random_bus_stop_on_path(bus_lines[bl], proba_bus_stop_on_segment) at:bl to:bus_stops;
 		}
 		
+		if debug_mode {write "\nCreate new road to intersect with bus stops and kill the old ones";}
+		
 		// update graph with new intersections (bus stops)
-		loop bs over:copy(bus_stop) - [first(bus_stop),last(bus_stop)] {
+		list<point> in_out_intersections <- intersections where each.inout collect each.location;
+		loop bs over:bus_stop where not(in_out_intersections contains each.location) {
+			
 			ask road first_with (bs overlaps each) {
 				create road with:[shape::line(first(self.shape.points),bs.location),
 					env::env,lanes::lanes,maxspeed::maxspeed
@@ -69,12 +73,16 @@ global {
 			}
 		}	
 		
-		graph<road,intersection> result_graph <- as_driving_graph(road, intersection+bus_stop);
+		if debug_mode {write "Create new road network with intersections and bus stops";}
+		list<point> bus_stop_location <- bus_stop collect each.location;
+		graph<road,intersection> result_graph <- as_driving_graph(road, 
+			list<intersection>(intersection where not(bus_stop_location contains each.location)+bus_stop)
+		);
 		
-		// update bus line path (because of dead road)
+		// Update bus line path with the graph generated with bus stops
 		loop bl over:bus_lines_color.keys {
 			add path_between(topology(result_graph), bus_stops[bl]) at:bl to:bus_lines;
-			geometry bl_geom <- union(bus_lines[bl].segments);
+			geometry bl_geom <- union(bus_lines[bl].edges);
 			if bus_stops[bl] one_matches not(each overlaps bl_geom) {
 				error "New bus line path does not go through all defined bus stops";
 			}  
@@ -82,7 +90,7 @@ global {
 		
 		if not(result_graph.vertices contains_all bus_stop) {error "Bus stops have not been put in the road network correctly";}
 		
-		if debug_mode {write "\nDefined bus stops : \n" +bus_stops.pairs collect (each.key+" => "+length(each.value)+"\n");}
+		if debug_mode {write "\nStart generating bus schedules : \n" +bus_stops.pairs collect (each.key+" => "+length(each.value)+"\n");}
 		
 		list<date> departure_times;
 		date bd <- #epoch;
@@ -129,6 +137,7 @@ global {
 			}
 			
 		}
+		
 		return result_graph;
 	}
 	

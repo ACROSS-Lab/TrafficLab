@@ -73,15 +73,6 @@ species vehicle skills:[advanced_driving] {
 	action define_target(point to_destination){
 		final_target <- to_destination;
 		
-		write "[vehicle>>define_target] "+sample(road closest_to self);
-		write "[vehicle>>define_target] "+sample(road first_with (each overlaps to_destination));
-		
-		path test_path <- path_between(context.road_network,
-			(road closest_to self).target_node,to_destination
-		);
-		
-		write "[vehicle>>define_target] "+sample(test_path);
-		
 		current_path <- compute_path(context.road_network, 
 			context.road_network.vertices closest_to final_target,
 			on_road::road closest_to self
@@ -127,6 +118,10 @@ species car parent:vehicle {
 		draw rectangle(vehicle_width,vehicle_length) rotate:heading+90 color:color at:calcul_loc();
 	}
 	
+	aspect big {
+		draw rectangle(vehicle_width*3,vehicle_length*3) rotate:heading+90 color:color;
+	}
+	
 }
 
 species moto parent:vehicle {
@@ -160,7 +155,7 @@ species bus skills:[escape_publictransport_skill] parent:vehicle {
 	}
 	
 	aspect big {
-		draw rectangle(vehicle_width*2,vehicle_length*2) rotate:heading+90 color:color;
+		draw rectangle(vehicle_width*3,vehicle_length*3) rotate:heading+90 color:color;
 	}
 	
 }

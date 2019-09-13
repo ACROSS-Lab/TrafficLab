@@ -9,7 +9,7 @@ model CrossRoadSetup
 
 import "Environments/Road.gaml"
 import "Environments/Ward.gaml"
-import "Environments/BusLine.gaml"
+import "Environments/PublicTransport.gaml"
 import "Agents/Vehicle.gaml"
 import "AbstractLab.gaml"
 
@@ -210,8 +210,8 @@ experiment CrossRoadVehicleOnly parent:vehcile_lab {
 
 experiment WardPublicTransport parent:vehicle_lab {
 
-	parameter "bus line number" var:nb_bus_lines init:3 min:0 max:12 category:"Public transport";
-	parameter "nb cars" var:number_of_vehicles init:0 category:vehicle;
+	parameter "bus line number" var:nb_bus_lines init:4 min:0 max:12 category:"Public transport";
+	parameter "nb cars" var:number_of_vehicles init:2000 category:vehicle;
 	parameter "setup" var:setup init:"multiple" category:"Transport system";
 	parameter "world size" var:world_size init:{2000,2000} category:"Global";
 	
@@ -221,6 +221,7 @@ experiment WardPublicTransport parent:vehicle_lab {
 			species bus_stop aspect:big;
 			species road;
 			species bus aspect:big;
+			species car aspect:big;
 		}
 	}
 	
