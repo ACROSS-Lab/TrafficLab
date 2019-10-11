@@ -15,6 +15,9 @@ global {
 	environment env;
 	point world_size <- {100,100};
 	
+	bool verbose <- true;
+	bool debug_mode <- false;
+	
 	// ------- //
 	// VEHICLE //
 	// ------- //
@@ -66,7 +69,24 @@ global {
 	
 	string pedestrian_aspect <- "default" parameter:true among:["default","path","destination"] category:"display";
 	
+	// -------- //
+	// BUILDING //
+	// -------- //
+	
+	float door_width <- 1.2#m;
+	float wall_thickness <- 15#cm;
+
+	/*________________
+	 |				  |
+	 | INITIALIZATION |
+	 |________________|
+	 				  */
+	
 	init {
+		
+		// ----------------------------------- //
+		if verbose {write "Start creating people";}
+		// ----------------------------------- //
 		
 		if(people_type = "simple"){
 			create simple_people number:nb_pedestrian with:[

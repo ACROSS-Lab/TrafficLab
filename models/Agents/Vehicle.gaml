@@ -142,16 +142,18 @@ species bus skills:[escape_publictransport_skill] parent:vehicle {
 	}
 	
 	action define_target(point to_destination) {
-		do define_next_target;
-		if next_stop != nil {
-			if final_target = nil {
+		// If no next stop target or arrived at stop destination and on time to go for next one
+		if next_stop = nil or (location = next_stop.location) { 
+			do define_next_target;
+		}
+		
+		// If there is next stop defined but no target
+		if next_stop != nil and final_target = nil and is_time_to_go() {
 				final_target <- next_stop;
 				current_path <- compute_path(graph: context.road_network, target: next_stop);
 				if(current_path = nil) { error "WARNING: nil current path : " + transport_line + ";" + location + ";" + next_stop; }
-			} else {
-				do is_time_to_go();
-			}
 		}
+		
 	}
 	
 	aspect big {

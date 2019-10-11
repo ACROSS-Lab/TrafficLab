@@ -221,7 +221,7 @@ species bus_line skills:[escape_publictransport_scheduler_skill]{
 	reflex manage_bus {
 		//  TODO : manage bus end and start line
 		ask copy(the_buses) where (each.location = the_stops[last(stops)].location and empty(each.passengers)) {
-			write sample(myself)+" ["+myself.name+"] will kill "+self;
+			if debug_mode {write sample(myself)+" ["+myself.name+"] will kill "+self;}
 			myself.the_buses >- self;
 			do die;
 		}
@@ -229,12 +229,12 @@ species bus_line skills:[escape_publictransport_scheduler_skill]{
 		list<int> stop_times <- check_departure(); // Check for a departure
 		
 		if not empty(stop_times) {
-			create bus with:[transport_line::name,context::env] returns:nb {
+			create bus with:[transport_line::name,color::self.color,context::env] returns:nb {
 				do define_route stops:myself.the_stops.values schedule:stop_times;
 				do init_departure;
 				add self to:myself.the_buses;
 			}
-			write sample(self)+" ["+name+"] create a new bus "+nb[0];
+			if debug_mode {write sample(self)+" ["+name+"] create a new bus "+nb[0];}
 		}
 		
 	}

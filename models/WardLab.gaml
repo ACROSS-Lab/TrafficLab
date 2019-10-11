@@ -7,15 +7,14 @@
 
 model CrossRoadSetup
 
-import "Environments/Road.gaml"
 import "Environments/Ward.gaml"
 import "Environments/PublicTransport.gaml"
-import "Agents/Vehicle.gaml"
 import "AbstractLab.gaml"
 
 global {
 	
-	bool debug_mode <- false; 
+	bool debug_mode <- false;
+	 
 	float seed <- 1233445;
 	
 	string setup parameter:true init:"simple" among:["simple", "multiple", "complex"] category:"Transport system";
@@ -38,7 +37,15 @@ global {
 	
 	init {
 		
+		// ----------------------------------- //
+		if verbose {
+			write "--------------------------------";
+			write "\tWARDLAB  !";
+			write "\nCreate setup : lines for roads and shape for buildings";
+		}
+		
 		list<geometry> lines;
+		list<geometry> buildings;
 		
 		create ward with:[shape::world];
 		env <- ward[0];
@@ -46,8 +53,12 @@ global {
 		switch setup {
 			match "simple" {lines <- simple_setup();}
 			match "multiple" {lines <- multiple_setup();}
-			match "complex" {lines <- complex_setup();}
+			// FIXME match "complex" {lines <- complex_setup();}
 		}
+		
+		// ----------------------------------- //
+		if verbose {write "Start generating roads and intersections";}
+		// ----------------------------------- //
 		
 		create road from:split_lines(lines) with:[env::env,lanes::2,maxspeed::50#km/#h];
 		
@@ -75,7 +86,27 @@ global {
 		
 		ward(env).roads <- list<road>(road);
 		
-		// INIT PUBLIC TRANSPORT
+		// ----------------------------------- //
+		if verbose {write "Start generating buildings";}
+		// ----------------------------------- //
+		
+		list blds <- simple_building(lines);
+		write sample(blds);
+		if length(blds) = 1 {error "There is only one building";}
+		else {write "There is "+length(blds)+" building in the ward";}
+		
+		loop bld over:blds {
+			building b <- create_simple_building(self);
+			write sample(b); 
+			ward(env).buildings <+ b;
+		}
+		
+		// ward(env).buildings <- blds accumulate create_simple_building(each);
+		
+		// ----------------------------------- //
+		if verbose {write "Start generating road network with or without public transport";}
+		// ----------------------------------- //
+		
 		if setup != "simple" and nb_bus_lines > 0 {
 			int bl <- 1;
 			map<string,rgb> bus_lines;
@@ -89,11 +120,19 @@ global {
 		
 		if road one_matches (each.lanes = nil){ error sample(road first_with (each.lanes = nil)); }
 		
+		// ----------------------------------- //
+		if verbose {write "Start generating pedestrian network";}
+		// ----------------------------------- //
+		
 		bool small_coridor <- true;
 		list<geometry> p_lines <- generate_pedestrian_network([],small_coridor ? road collect (each buffer 2#m) : [],true,false,3.0,0.001,true,0.1,0.0,0.0);
 		create corridor from: p_lines { do initialize distance:2#m; }
 		
 		env.pedestrian_network <- as_edge_graph(corridor);	
+		
+		// ----------------------------------- //
+		if verbose {write "Start creating car agent";}
+		// ----------------------------------- //
 			
 		create car number:number_of_vehicles with:[context::env] {
 			
@@ -127,7 +166,9 @@ global {
 		
 	}
 	
-	// Simple cross road
+	/*
+	 * Simple cross road : only one crossroad in the center of the world
+	 */ 
 	list<geometry> simple_setup {
 		float mid_x <- shape.width/2;
 		float mid_y <- shape.height/2;
@@ -138,7 +179,9 @@ global {
 		];
 	}
 	
-	// Several cross roads
+	/*
+	 * Several cross roads : roads start at equivalent distance on x and y coordinate and cross the entier world
+	 */
 	list<geometry> multiple_setup {
 		
 		if(number_of_intersections > 21) {
@@ -176,6 +219,19 @@ global {
 		//small_world <- layout(small_world, "circle", 10);
 		
 		return small_world.edges;
+	}
+	
+	/*
+	 * Create shapes made from road + buffer that have been remove from world or given shape
+	 */
+	list<geometry> simple_building(list<geometry> lines, geometry world_shape <- nil, float road_width <- 3#m) {
+		list<geometry> buildings;
+		
+		world_shape <- world_shape = nil ? env.shape : world_shape;
+		
+		geometry bldng <- world_shape - union(lines collect (each buffer road_width));
+		
+		return bldng.geometries;
 	}
 	
 }
@@ -222,6 +278,10 @@ experiment WardPublicTransport parent:vehicle_lab {
 			species road;
 			species bus aspect:big;
 			species car aspect:big;
+			
+			species room;
+			species door;
+			species wall;
 		}
 	}
 	

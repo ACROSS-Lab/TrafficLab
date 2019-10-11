@@ -14,17 +14,15 @@ import "AbstractLab.gaml"
 
 global {
 	
-	bool debug_mode <- false parameter:true category:"display";
+	bool debug_mode <- true parameter:true category:"display";
 	
 	// Building parameters
 	string building_type parameter:true among:["simple","complex"] init:"complex" category:building;
-	float door_width parameter:true init:1.2#m min:0.5#m max:10#m category:building;
-	float wall_thickness <- 10#cm;
 	float proba_expand_room parameter:true init:0.9 max:0.99 category:building;
 	
 	float step <- 1#s/10;
 	
-	geometry shape <- square(int(world_size.x*world_size.y/2));
+	geometry shape <- square(int(world_size.x+world_size.y/2));
 	
 	init{
 		
@@ -52,50 +50,9 @@ global {
 		
 	}
 	
-	action create_simple_building(geometry building_shape) {
-		int room_height <- one_of(2,3,5);
-		
-		point pr_ul <- {0,building_shape.height/2+room_height*2};
-		point pr_br <- {building_shape.width, building_shape.height/2-room_height*2};
-		geometry s_building <- rectangle(pr_ul,pr_br);
-		
-		create room from:s_building to_rectangles (2,1){
-			room_number <- int(self);
-		}
-		
-		geometry door_wall <- intersection(room[0],room[1]);
-		
-		door the_door <- create_door(door_wall, {0,1});
-		
-		loop r over:room {
-			loop g over:to_segments(r.shape.contour){
-				geometry w <- envelope(g buffer 10#cm) ;
-				bool has_door <- false;
-				if(g overlaps the_door){
-					w <- w - the_door;
-					has_door <- true;	
-				}
-				
-				create wall with:[shape::w] returns:the_wall{
-					if(has_door){ doors <+ the_door;}
-				}
-				
-				r.walls <<+ the_wall;
-			}
-		}
-		
-		create building {
-			
-			rooms <- list(room);
-			list<geometry> lines <- generate_pedestrian_network([wall],room,true,false,3.0,0.1,true,0.0,0.0,0.0);
-			
-			create corridor from: lines collect simplification(each, 0.01) { do initialize distance:corridor_size obstacles:[wall]; }
-			pedestrian_network <- as_edge_graph(corridor);	
-			
-		}
-		
-	}
-	
+	/*
+	 * Create a building based on a grid topology
+	 */
 	action create_building {
 		
 		list<room> the_rooms;
@@ -110,20 +67,40 @@ global {
 		if(debug_mode){write "Create the room path with single doors";}
 		loop while:available_cells {
 			current_room <- create_room(s_cell);
-			create room with:[shape::union(current_room),room_number::id]{ the_rooms <+ self; }
+			if debug_mode {write "Create room "+id+" with size : "+current_room;}
+			create room with:[shape::union(current_room) with_precision 1#cm,room_number::id]{ the_rooms <+ self; }
 			
 			list<room_cell> nghbs <- current_room accumulate (each.neighbors where (each.grid_value = 0.0));
 			//s_cell <- one_of(nghbs);
-			s_cell <- nghbs with_max_of (length(each.neighbors inter nghbs));
+			s_cell <- nghbs with_max_of (each.neighbors count (each.grid_value = id));
 			if(s_cell = nil){ 
 				available_cells <- false;
 			} else {
+				room_cell c_cell <- one_of(s_cell.neighbors where (each.grid_value = id));
+				if c_cell = nil {error "not possible";}
 				id <- id+1;
 				s_cell.grid_value <- float(id);
-				room_cell c_cell <- one_of(s_cell.neighbors where (current_room contains each));
 				
-				do create_door(s_cell.shape.contour intersection c_cell.shape.contour, {id-1,id});
-
+				list p_wall;
+				loop p over:s_cell.shape.points {
+					if c_cell.shape.points one_matches ((each with_precision 3) = (p with_precision 3)) {
+						p_wall <+ p;
+					}
+				}
+				
+				geometry the_wall <- line(remove_duplicates(p_wall));
+				
+				if length(the_wall.points) < 2 {
+					write sample(s_cell)+" : "+sample(s_cell.neighbors collect int(each));
+					write sample(c_cell)+" : "+sample(c_cell.neighbors collect int(each));
+					write sample(p_wall); 
+					write sample(s_cell.shape.points);
+					write sample(c_cell.shape.points);
+					error sample(the_wall)+" must be a line";
+				} else {
+					do create_door(the_wall, {id-1,id});
+				}
+				
 			}
 			
 		}
@@ -144,7 +121,7 @@ global {
 			} 
 			
 			int nb_n <- length(available_nghbr_rn) -  1;
-			available_nghbr_rn <- remove_duplicates(available_nghbr_rn) - r.room_number - nghbr_rn - 0;
+			available_nghbr_rn <- remove_duplicates(available_nghbr_rn) - r.room_number - nghbr_rn;
 			
 			loop while:length(available_nghbr_rn) > 1 and flip(1.0 - (length(doors) / nb_n)) {
 				room new_ngb <- one_of(room where (available_nghbr_rn contains each.room_number));
@@ -198,22 +175,6 @@ global {
 		}
 		return the_room;
 	}
-	
-	// Create a door in the_wall at given position {room1,room2}
-	door create_door(geometry the_wall, point position){
-		
-		point center;
-		loop while:center=nil 
-			or (center distance_to world.shape.contour < (door_width/2)+0.2#m) 
-			or (min(the_wall.points collect (each distance_to center)) < (door_width/2)+0.2#m) {
-			center <- any_location_in(the_wall);	
-		}
-						
-		geometry the_door <- envelope(translated_to(the_wall * (door_width / the_wall.perimeter), center) buffer wall_thickness);
-				
-		create door with:[shape::the_door,connection::position] returns:the_doors;
-		return first(the_doors);
-	}
 		
 }
 
@@ -224,6 +185,8 @@ grid room_cell cell_width:4#m cell_height:4#m neighbors:4 {
 
 
 experiment BuildingSetup parent:lab {
+
+	parameter "Door width" var:door_width min:0.5#m max:10#m category:building;
 
 	output {
 		display "Building" {
