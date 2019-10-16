@@ -26,8 +26,6 @@ global {
 		
 		if debug_mode {write "Given geometry splits into "+length(squaredgeom)+" cells";}
 		
-		map<geometry,point> cell_coordinates <- squaredgeom as_map (each::each.location);
-		
 		
 		list<float> x_full <- squaredgeom collect (each.location.x);
 		list<float> x_coord <- remove_duplicates(x_full);
@@ -39,17 +37,17 @@ global {
 		//list<float> y_coord_verified <- no_duplicates(squaredgeom collect (each.location.y), 0.01);
 		int max_y <- max(y_coord count (y_full contains each));
 		
-		m <- {max_x,max_y} matrix_with nil;
-		
-		if debug_mode {write "Square got "+max_x+" max x coordintate and "+max_y+" max y coordinate";}
-		
-		loop k over:cell_coordinates.keys {
-			put k in:m at:{x_coord index_of cell_coordinates[k].x,
-				y_coord index_of cell_coordinates[k].y};
-		}
-		
 		create gridshape returns:gs {
-			create cell from:m with:[shape::shape,coordinate::location] returns:cells;
+			grid <- {max_x,max_y} matrix_with nil;
+			max_grid_x <- max_x;
+			max_grid_y <- max_y;
+			
+			loop sq over:squaredgeom {
+				create cell with:[shape::sq] {
+					coordinate <- point(x_coord index_of location.x, y_coord index_of location.y);
+					put self in:myself.grid at:coordinate;
+				}
+			}
 			
 		} 
 		
@@ -59,34 +57,56 @@ global {
 }
 
 /*
- * A grid species based on any geometry
+ * A grid species based on any geometry </br>
+ * As it is the case in Gama, underlying matrix is coordinated from upper (x=0) left (y=0) corner </p>
  */
 species gridshape {
 	
+	// MAIN CONTENT
 	matrix<cell> grid;
+	int max_grid_x;
+	int max_grid_y;
+	
 	string neighbor_type init:"vonneuman" among:["moore","vonneuman"];
 	
-	list<cell> neighbors(cell current_cell, string neighbor_type) {
-		list<cell> nghbrs;
-		if neighbor_type = VONNEUMAN {
-			return [grid at (current_cell.coordinate+{0,1}),
-				grid at (current_cell.coordinate+{1,0}),
-				grid at (current_cell.coordinate+{0,-1}),
-				grid at (current_cell.coordinate+{-1,0})
-			];
-		} else if neighbor_type = MOORE {
-			return [grid at (current_cell.coordinate+{0,1}),
-				grid at (current_cell.coordinate+{1,1}),
-				grid at (current_cell.coordinate+{1,0}),
-				grid at (current_cell.coordinate+{1,-1}),
-				grid at (current_cell.coordinate+{0,-1}),
-				grid at (current_cell.coordinate+{-1,-1}),
-				grid at (current_cell.coordinate+{-1,0}),
-				grid at (current_cell.coordinate+{-1,1})
-			];
-		} else {
-			error "no such neighbor type : "+neighbor_type;
+	list<cell> neighbors(cell current_cell, string neighbor_type <- VONNEUMAN) {
+
+		bool west <- current_cell.coordinate.y = 0;
+		bool north <- current_cell.coordinate.x = 0;
+		bool east <- current_cell.coordinate.y = max_grid_y;
+		bool south <- current_cell.coordinate.x = max_grid_x;
+		list<point> n_coords; // ==> From west, north, east to south !
+		// VONNEUMAN 
+		if not west {
+			n_coords <+ current_cell.coordinate+{0,-1};
+			if neighbor_type = MOORE {
+				n_coords <+ current_cell.coordinate+{1,-1};
+				n_coords <+ current_cell.coordinate+{-1,-1};
+			}
 		}
+		if not north {
+			n_coords <+ current_cell.coordinate+{-1,0};
+			if neighbor_type = MOORE {
+				n_coords <+ current_cell.coordinate+{-1,-1};
+				n_coords <+ current_cell.coordinate+{-1,1};
+			}
+		}
+		if not east {
+			n_coords <+ current_cell.coordinate+{0,1};
+			if neighbor_type = MOORE {
+				n_coords <+ current_cell.coordinate+{1,1};
+				n_coords <+ current_cell.coordinate+{-1,1};
+			}
+		}
+		if not south {
+			n_coords <+ current_cell.coordinate+{1,0};
+			if neighbor_type = MOORE {
+				n_coords <+ current_cell.coordinate+{1,-1};
+				n_coords <+ current_cell.coordinate+{1,1};
+			}
+		}
+
+		return remove_duplicates(n_coords) collect (grid at (each));
 	}
 	
 	/*
@@ -94,6 +114,15 @@ species gridshape {
 	 */
 	species cell {
 		point coordinate;
+		float value;
+		list<cell> neighbors(string neighbor_type  <- VONNEUMAN) {return host.neighbors(self,neighbor_type);}
+	}
+	
+	aspect default {
+		loop c over:grid {
+			draw string(c.value) at:location color:#black;
+			draw c color:#transparent border:#black;
+		}
 	}
 	
 }

@@ -96,7 +96,6 @@ global {
 			]{
 				obstacle_species <- obs_species;
 				obstacle_distance_repulsion_coeff <- P_obstacle_distance_repulsion_coeff;
-				obstacle_repulsion_intensity <-P_obstacle_repulsion_intensity;
 				overlapping_coefficient <- P_overlapping_coefficient;
 				perception_sensibility <- P_perception_sensibility ;
 				shoulder_length <- P_shoulder_length;
@@ -111,7 +110,6 @@ global {
 			]{
 				obstacle_species <- obs_species;
 				obstacle_distance_repulsion_coeff <- P_obstacle_distance_repulsion_coeff;
-				obstacle_repulsion_intensity <-P_obstacle_repulsion_intensity;
 				overlapping_coefficient <- P_overlapping_coefficient;
 				perception_sensibility <- P_perception_sensibility ;
 				shoulder_length <- P_shoulder_length;
