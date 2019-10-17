@@ -100,4 +100,10 @@ species corridor skills:[pedestrian_road] parent:block {
 	aspect virtual {
 		draw self.free_space color:#yellow;
 	}
+	
+	aspect hub {
+		loop h over: exit_nodes.values accumulate list<point>(each){
+			draw square(2.0) at: point(h) color: color;
+		} 
+	}
 }

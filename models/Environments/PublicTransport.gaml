@@ -17,11 +17,10 @@ global {
 	 * TODO : add parameter to tweak bus stop creation on bus line path (e.g. every n meter) 
 	 */
 	graph<road,intersection> generate_public_transport(container<road> roads,container<intersection> intersections, 
-		map<string,rgb> bus_lines_color, float average_bus_speed <- base_bus_speed, 
-		bool debug_mode <- false, float proba_bus_stop_on_segment <- 0.4
+		map<string,rgb> bus_lines_color, float average_bus_speed <- base_bus_speed, float proba_bus_stop_on_segment <- 0.4
 	) {
 		
-		if debug_mode {write "Start generating public transport from scratch";}
+		if debug {write "Start generating public transport from scratch";}
 			
 		graph fake_net <- as_edge_graph(roads);
 			
@@ -33,7 +32,7 @@ global {
 			add path_between(fake_net,start,any(in_out)) at:bl to:bus_lines;
 		}
 		
-		if debug_mode {write "\nDefined "+length(bus_lines)+" : 
+		if debug {write "\nDefined "+length(bus_lines)+" : 
 			\n"+bus_lines.pairs collect (each.key+" with total length of "+each.value.distance+"m\n");
 		}
 		
@@ -43,7 +42,7 @@ global {
 			add random_bus_stop_on_path(bus_lines[bl], proba_bus_stop_on_segment) at:bl to:bus_stops;
 		}
 		
-		if debug_mode {write "\nCreate new road to intersect with bus stops and kill the old ones";}
+		if debug {write "\nCreate new road to intersect with bus stops and kill the old ones";}
 		
 		// update graph with new intersections (bus stops)
 		list<point> in_out_intersections <- intersections where each.inout collect each.location;
@@ -73,7 +72,7 @@ global {
 			}
 		}	
 		
-		if debug_mode {write "Create new road network with intersections and bus stops";}
+		if debug {write "Create new road network with intersections and bus stops";}
 		list<point> bus_stop_location <- bus_stop collect each.location;
 		graph<road,intersection> result_graph <- as_driving_graph(road, 
 			list<intersection>(intersection where not(bus_stop_location contains each.location)+bus_stop)
@@ -90,7 +89,7 @@ global {
 		
 		if not(result_graph.vertices contains_all bus_stop) {error "Bus stops have not been put in the road network correctly";}
 		
-		if debug_mode {write "\nStart generating bus schedules : \n" +bus_stops.pairs collect (each.key+" => "+length(each.value)+"\n");}
+		if debug {write "\nStart generating bus schedules : \n" +bus_stops.pairs collect (each.key+" => "+length(each.value)+"\n");}
 		
 		list<date> departure_times;
 		date bd <- #epoch;
@@ -104,7 +103,7 @@ global {
 			list<bus_stop> foward_bus_stop <- bus_stops[bl];
 			path foward_line <- bus_lines[bl];
 			
-			if debug_mode {write "Start loading bus line "+bl+">> (foward)"
+			if debug {write "Start loading bus line "+bl+">> (foward)"
 				+" [len="+foward_line.distance+";stops="+length(foward_bus_stop)+"]";
 			}
 			
@@ -114,15 +113,15 @@ global {
 			] {
 				loop s over:the_stops {s.bus_lines <+ self;}
 				do setup_schedule(myself.estimated_travel_time(result_graph, bus_lines[bl],
-					foward_bus_stop, average_bus_speed, bl+">>", debug_mode
-				), departure_times, debug_mode);
+					foward_bus_stop, average_bus_speed, bl+">>", debug
+				), departure_times, debug);
 			}
 			
 			
 			list<bus_stop> reverse_bus_stop <- reverse(copy(bus_stops[bl])); 
 			path reverse_line <- path_between(result_graph, point(last(bus_lines[bl].vertices)), point(first(bus_lines[bl].vertices)));
 			
-			if debug_mode {write "Start loading bus line >>"+bl+" (backward)"
+			if debug {write "Start loading bus line >>"+bl+" (backward)"
 				+" [len="+reverse_line.distance+";stops="+length(reverse_bus_stop)+"]";
 			}
 			
@@ -132,8 +131,8 @@ global {
 			] {
 				loop s over:the_stops {s.bus_lines <+ self;}
 				do setup_schedule(myself.estimated_travel_time(result_graph, reverse_line,
-					reverse_bus_stop, average_bus_speed, ">>"+bl, debug_mode
-				), departure_times, debug_mode);
+					reverse_bus_stop, average_bus_speed, ">>"+bl, debug
+				), departure_times, debug);
 			}
 			
 		}
@@ -182,7 +181,7 @@ global {
 	 */
 	map<bus_stop,float> estimated_travel_time(graph on_graph, path line_path, 
 		list<bus_stop> b_stops, float average_bus_speed, 
-		string bl, bool debug_mode
+		string bl, bool debug
 	) {
 		
 		float line_time <- line_path.distance / average_bus_speed * rnd(0.9,1.2); // Add some delay 1.2
@@ -194,7 +193,7 @@ global {
 			add l / line_path.distance * line_time at:b_stops[ip] to:bs_time;
 		}
 		
-		if debug_mode {write sample(bs_time.values);}
+		if debug {write sample(bs_time.values);}
 			
 		return bs_time; 
 	}
@@ -221,7 +220,7 @@ species bus_line skills:[escape_publictransport_scheduler_skill]{
 	reflex manage_bus {
 		//  TODO : manage bus end and start line
 		ask copy(the_buses) where (each.location = the_stops[last(stops)].location and empty(each.passengers)) {
-			if debug_mode {write sample(myself)+" ["+myself.name+"] will kill "+self;}
+			if debug {write sample(myself)+" ["+myself.name+"] will kill "+self;}
 			myself.the_buses >- self;
 			do die;
 		}
@@ -234,7 +233,7 @@ species bus_line skills:[escape_publictransport_scheduler_skill]{
 				do init_departure;
 				add self to:myself.the_buses;
 			}
-			if debug_mode {write sample(self)+" ["+name+"] create a new bus "+nb[0];}
+			if debug {write sample(self)+" ["+name+"] create a new bus "+nb[0];}
 		}
 		
 	}
@@ -242,10 +241,10 @@ species bus_line skills:[escape_publictransport_scheduler_skill]{
 	/*
 	 * Setup a very simple schedule : depart every 'start_time' from first stop of the line, with pre-computed elapsed time between stops
 	 */
-	action setup_schedule(map<bus_stop, float> stops_time, list<date> start_time, bool debug_mode) {
+	action setup_schedule(map<bus_stop, float> stops_time, list<date> start_time, bool debug) {
 		matrix mat <- {length(the_stops), length(start_time)+1} matrix_with "NA";
 		
-		if debug_mode {write "\nSetup schedule for bus line "+name+"\n";}
+		if debug {write "\nSetup schedule for bus line "+name+"\n";}
 		
 		// TODO : test if stops_time.keys is the same as the_stops.values; that is same ordering of bus stop
 		map<bus_stop, string> reverse_stop <- the_stops.pairs as_map (each.value :: each.key);
@@ -254,7 +253,7 @@ species bus_line skills:[escape_publictransport_scheduler_skill]{
 			error "Stops time and given bus stops for the line "+name+" are not complient\n"
 				+sample(stops_time)+"\n"+sample(reverse_stop);
 		} else {
-			if debug_mode {write "Bus line "+name+" is composed of "+reverse_stop.values+" bus stops";}
+			if debug {write "Bus line "+name+" is composed of "+reverse_stop.values+" bus stops";}
 		}
 		
 		int sid;
@@ -272,11 +271,11 @@ species bus_line skills:[escape_publictransport_scheduler_skill]{
 			dnb <- dnb + 1;
 		} 
 		
-		if debug_mode {write "["+sample(self)+"] try to setup the schedule with matrix \n"+transpose(mat);}
+		if debug {write "["+sample(self)+"] try to setup the schedule with matrix \n"+transpose(mat);}
 		
 		do define_schedule schedule:transpose(mat);
 		
-		if debug_mode {write "["+sample(self)+"] registered bus stops are: "+sample(stops);}
+		if debug {write "["+sample(self)+"] registered bus stops are: "+sample(stops);}
 		
 		do check_next_departure; // Init departure ... 
 	}

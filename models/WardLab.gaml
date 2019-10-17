@@ -96,7 +96,7 @@ global {
 		else {write "There is "+length(blds)+" building in the ward";}
 		
 		loop bld over:blds {
-			building b <- create_simple_building(self);
+			building b <- create_building_from_sh(self);
 			write sample(b); 
 			ward(env).buildings <+ b;
 		}
@@ -111,7 +111,7 @@ global {
 			int bl <- 1;
 			map<string,rgb> bus_lines;
 			loop times:nb_bus_lines { add bus_palette[bl-1] to:bus_lines at:string(bl); bl <- bl + 1;}
-			env.road_network <- generate_public_transport(road,intersection,bus_lines,debug_mode::debug_mode);
+			env.road_network <- generate_public_transport(road,intersection,bus_lines);
 		} else {
 			env.road_network <- as_driving_graph(road,intersection);
 		}

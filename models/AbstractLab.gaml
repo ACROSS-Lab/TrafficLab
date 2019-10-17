@@ -15,8 +15,13 @@ global {
 	environment env;
 	point world_size <- {100,100};
 	
-	bool verbose <- true;
-	bool debug_mode <- false;
+	// ------- //
+	// LOG OUT //
+	// ------- //
+	
+	bool verbose <- true; // (1) Info on higher order processes
+	bool debug <- false; // (2) Debug within processes
+	bool trace <- false; // (3) Inloop and very verbose debug
 	
 	// ------- //
 	// VEHICLE //
@@ -42,8 +47,8 @@ global {
 	// ---------------- //
 	
 	string bus_dir <- ">>";
-	float base_bus_speed <- 20 #km/#h;
-	list<rgb> bus_palette <- brewer_colors("Set3",12);
+	float base_bus_speed init:20 #km/#h;
+	list<rgb> bus_palette init:brewer_colors("Set3",12);
 	
 	// ------ //
 	// PEOPLE //
@@ -53,8 +58,6 @@ global {
 	string people_type;
 	
 	int nb_pedestrian <- 0;
-	
-	float corridor_size;
 	
 	float P_obstacle_distance_repulsion_coeff;
 	float P_obstacle_repulsion_intensity;
@@ -68,6 +71,11 @@ global {
 	list obs_species <- [people,vehicle];
 	
 	string pedestrian_aspect <- "default" parameter:true among:["default","path","destination"] category:"display";
+	
+	// Pedestrian network //
+	
+	bool reduced_angular_distance init:true;
+	float corridor_size init:0.0;
 	
 	// -------- //
 	// BUILDING //

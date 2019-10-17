@@ -19,27 +19,28 @@ global {
 	
 	// Building parameters
 	string building_type parameter:true among:["simple","complex"] init:"complex" category:building;
-	float proba_expand_room parameter:true init:0.9 max:0.99 category:building;
 	
 	float step <- 1#s/10;
 	
 	geometry shape <- square(int(world_size.x+world_size.y/2));
+	
+	float corridor_size <- 2#m;
 	
 	// DEBUG
 	list<geometry> walls_with_door_one;
 	
 	init{
 		
+		if verbose {write "Create "+building_type+" building";}
+		
 		switch building_type {
 			match "complex" {
-				do create_building(build_gridshape(world.shape,{10,10}));
+				env <- create_building_from_gs(build_gridshape(world.shape,{10,10}));
 			} 
 			match "simple" {
-				do create_simple_building(world.shape);
+				env <- create_building_from_sh(world.shape);
 			}
 		}
-		
-		env <- building[0];
 		
 		ask people {
 			switch species_of(self) {
@@ -70,7 +71,7 @@ experiment BuildingSetup parent:lab {
 			species wall;
 			agents value:agents of_generic_species people;
 			
-			species corridor;
+			species corridor aspect: hub;
 			
 			graphics "walls with door" {
 				loop w over:walls_with_door_one {draw w color:#gold;}

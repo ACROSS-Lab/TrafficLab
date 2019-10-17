@@ -20,25 +20,35 @@ global {
 	gridshape build_gridshape(geometry gshape, point squarization){
 		matrix m;
 		
-		if debug_mode {write "Build a gridshape from "+sample(gshape)+" with to_rectange using "+squarization;}
+		if debug {write "Build a gridshape from "+gshape+" with to_rectange using "+squarization;}
 		
 		list<geometry> squaredgeom <- gshape to_rectangles squarization;
 		
-		if debug_mode {write "Given geometry splits into "+length(squaredgeom)+" cells";}
+		if debug {write "Given geometry splits into "+length(squaredgeom)+" cells";}
 		
+		list<point> pp <- remove_duplicates(squaredgeom accumulate (each.points));
+		list<float> min_point_distance;
+		loop p over:pp {
+			list<float> point_distance <- (pp - p) collect (each distance_to p);
+			if min(point_distance) < 0.0001 {error "Floating precision error";}
+			min_point_distance <+ min(point_distance);
+		}
+		if debug {write "Average minimal distance between points "+mean(min_point_distance);}
+		if debug {write "Standard deviation minimal distance between points "+standard_deviation(min_point_distance);}
+		if debug {write "Minimal distance between points "+min(min_point_distance);}
 		
 		list<float> x_full <- squaredgeom collect (each.location.x);
 		list<float> x_coord <- remove_duplicates(x_full);
-		//list<float> x_coord_verified <- no_duplicates(squaredgeom collect (each.location.x), 0.01);
-		int max_x <- max(x_coord count (x_full contains each));
+		int max_x <- length(x_coord)-1;
 		
 		list<float> y_full <- squaredgeom collect (each.location.y);
 		list<float> y_coord <- remove_duplicates(y_full);
-		//list<float> y_coord_verified <- no_duplicates(squaredgeom collect (each.location.y), 0.01);
-		int max_y <- max(y_coord count (y_full contains each));
+		int max_y <- length(y_coord)-1;
+		
+		if debug {write "Create matrix with "+max_x+" and "+max_y+" coordinates";} 
 		
 		create gridshape returns:gs {
-			grid <- {max_x,max_y} matrix_with nil;
+			grid <- {max_x+1,max_y+1} matrix_with nil;
 			max_grid_x <- max_x;
 			max_grid_y <- max_y;
 			
@@ -106,7 +116,7 @@ species gridshape {
 			}
 		}
 
-		return remove_duplicates(n_coords) collect (grid at (each));
+		return remove_duplicates(n_coords) collect (grid at (each)) where (each != nil);
 	}
 	
 	/*
@@ -114,7 +124,7 @@ species gridshape {
 	 */
 	species cell {
 		point coordinate;
-		float value;
+		float value <- 0.0;
 		list<cell> neighbors(string neighbor_type  <- VONNEUMAN) {return host.neighbors(self,neighbor_type);}
 	}
 	

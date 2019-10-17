@@ -16,72 +16,60 @@ import "../Utils/GridEnvironment.gaml"
 global {
 	
 	int base_id <- 1;
-	float proba_expand_room <- 0.1;
+	float proba_expand_room parameter:true init:0.9 max:0.99 category:building;
 	
 	/*
 	 * Build a building from a gridshape
 	 */
-	building create_building(gridshape gs) {
+	building create_building_from_gs(gridshape gs) {
 		list<room> the_rooms;
 		
 		int id <- base_id;
 		bool available_cells <- true;
 		
-		if debug_mode {write "Create the first room to start building";}
+		if debug {write "Create the first room to start building";}
 		cell c <- gs.grid[{0,0}];
 		c.value <- float(id);
-		list<cell> current_room <- create_room(c);
+		list<cell> current_room <- build_room(c);
 		create room with:[shape::union(current_room),room_number::id]{ the_rooms <+ self; }
 		
-		if debug_mode {write "Expanding the building from neighbor to neighbor room, until no more space";}
+		if debug {write "Expanding the building from neighbor to neighbor room, until no more space";}
 		loop while:available_cells {
-			room previous_room <- room first_with (each.room_number = id);
-			c <- (cell where (each.value = 0.0)) with_max_of (each.neighbors() count (each.value = float(id)));
+			c <- any(current_room accumulate (each.neighbors() where (each.value=0.0)));
 			if c = nil {available_cells <- false;}
 			else {
 				id <- id + 1;
 				c.value <- float(id);
-				current_room <- create_room(c);
+				current_room <- build_room(c);
 				create room with:[shape::union(current_room),room_number::id] { the_rooms <+ self; }
-				geometry connecting_wall <- c.shape inter any(c.neighbors() where (each.value=previous_room.room_number)).shape;
-				//do create_door(connecting_wall, {last(the_rooms).room_number,previous_room.room_number});
 			}
 		}
 		
-		if debug_mode {write "Building contains "+length(the_rooms)+" rooms";}
+		if debug {write "Building contains "+length(the_rooms)+" rooms";}
 		
-		if debug_mode {write "Create walls !";}
-		list<wall> walls_done;
+		if debug {write "Create walls !";}
+		
 		ask room {
-			list<wall> wd;
-			list<geometry> walls_to_be_done;
 			loop g over:to_segments(shape.contour) { 
-				if walls_done none_matches (each.shape.points contains_all g.points) { walls_to_be_done <+ g; } 
-				else { wd <+ walls_done first_with (each.shape.points contains_all g.points); }
+				if wall none_matches (each.line.points contains_all g.points) { 
+					create wall with:[line::g,shape::envelope(g buffer wall_thickness)] { myself.walls <+ self; }
+				} 
+				else { walls <+ wall first_with (each.line.points contains_all g.points); }
 			}
-			
-			write "[building.gaml]  : "+sample(walls_to_be_done);
-			write "[building.gaml]  : "+sample(wd);
-			
-			loop w over:walls_to_be_done { 
-				create wall with:[shape::w] {
-					write "[building.gaml]  : "+sample(self); 
-					walls_done <+ self;
-					myself.walls <+ self;
-				}
-			}
-			if not empty(wd) {walls <+ wd;}
 		}
 		
-		if debug_mode {write "Create doors !";} 
+		if room one_matches (empty(each.neighboors())) {
+			error "There is room without any neighbors: \n"+sample(room where (empty(each.neighboors())));
+		}
+		
+		if debug {write "Create doors !";} 
 		int max_id <- max(room collect each.room_number);
 		ask room {
 			
 			if room_number < max_id {
 				room neigh <- neighboors() first_with (each.room_number = room_number+1);
-				ask one_of (walls where (neigh.walls contains each)) {
-					door connecting_door <- world.create_door(self,{myself.room_number,neigh.room_number});
-				}
+				if neigh = nil {error "Only the last room should not have neighbor";}
+				ask walls first_with (neigh.walls contains each) { do create_door({myself.room_number,neigh.room_number}); }
 			}
 			
 			// CREATE MORE DOORS
@@ -89,87 +77,58 @@ global {
 				(walls accumulate each.members)
 			);
 			
-			write "[building.gaml] : "+sample(candidates);
-			write "[building.gaml] : "+sample(neighboors());
-			write "[building.gaml] : "+sample(walls);
-			write "[building.gaml] : "+sample(neighboors() accumulate each.walls);
-			
-			/* 
-			write "[building.gaml] : "+neighboors() accumulate (each.walls accumulate each.members);
-			write "[building.gaml] : "+walls accumulate each.members;  
-			* 
-			*/
-			
-			loop while:not(candidates = nil) and flip(length(candidates)/length(neighboors())) {
+			int nghb <- length(neighboors());
+			loop while:nghb > 0 and not(candidates = nil or empty(candidates)) and flip(length(candidates)/nghb*0.5) {
 				room c <- one_of(candidates);
-				ask one_of(walls inter c.walls) {
-					door connecting_door <- world.create_door(self, {myself.room_number,c.room_number});
-				}
-				
+				ask one_of(walls inter c.walls) { do create_door({myself.room_number,c.room_number}); }
+				remove c from:candidates;
 			}
 			
 		}
 		
-		create building with:[rooms::the_rooms] returns:b {
-			list<geometry> lines <- generate_pedestrian_network([wall],room,true,false,3.0,0.1,true,0.0,0.0,0.0);
-			
-			create corridor from: lines collect simplification(each, 0.01) { do initialize distance:corridor_size obstacles:[wall]; }
-			pedestrian_network <- as_edge_graph(corridor);
-		}
-		
-		return b[0];
+		return create_building();
 	}
 	
 	/*
 	 * Create a very simple building made of wall and doors
 	 */
-	action create_simple_building(geometry building_shape) {
+	building create_building_from_sh(geometry building_shape, int xn <- 2, int yn <- 1) {
 				
-		create room from:building_shape to_rectangles (int(building_shape.height/rnd(3,7)#m),int(building_shape.width/rnd(3,7)#m)) {
-			room_number <- int(self);
-		}
-		/* 
-		geometry door_wall <- intersection(room[0],room[1]);
-		
-		door the_door <- create_door(door_wall, {0,1});
-		* 
-		
-		
-		loop r over:room {
-			loop g over:to_segments(r.shape.contour){
-				geometry w <- envelope(g buffer 10#cm) ;
-				bool has_door <- false;
-				if(g overlaps the_door){
-					w <- w - the_door;
-					has_door <- true;	
+		create room from:building_shape to_rectangles (xn,yn) { room_number <- int(self); }
+		 
+		ask room {
+			loop g over:to_segments(shape.contour) {
+				if wall none_matches (each.line.points contains_all g.points) {
+					create wall with:[line::g,shape::envelope(g buffer wall_thickness)] {myself.walls <+ self;}
+				} else {
+					walls <+ wall first_with (each.line.points contains_all g.points);
 				}
-				
-				create wall with:[shape::w] returns:the_wall{
-					if(has_door){ doors <+ the_door;}
-				}
-				
-				r.walls <<+ the_wall;
 			}
 		}
-		* 
-		*/
 		
-		create building {
-			
-			rooms <- list(room);
-			list<geometry> lines <- generate_pedestrian_network([wall],room,true,false,3.0,0.1,true,0.0,0.0,0.0);
-			
-			create corridor from: lines collect simplification(each, 0.01) { do initialize distance:corridor_size obstacles:[wall]; }
-			pedestrian_network <- as_edge_graph(corridor);	
-			
+		list<wall> connecting_walls;
+		loop r over:room { 
+			list cw <- (room - r) accumulate (each.walls inter r.walls);
+			if cw != nil and not(empty(cw)) {connecting_walls <- cw;}
 		}
+		
+		if connecting_walls = nil or empty(connecting_walls) {error "There must be at least one door";}
+		else if debug {write "Creates door on "+sample(connecting_walls);}
+		
+		ask connecting_walls {
+			list<room> cr <- room where (each.walls contains self); 
+			if length(cr) > 2 {error  sample(self)+" cannot be connected to more that 2 room : "+sample(cr);}
+			do create_door({cr[0].room_number,cr[1].room_number});
+		} 
+		
+		return create_building();
 		
 	}
 	
 	/*
 	 * Create a room from the grid
 	 */ 
-	list<cell> create_room(cell starting_cell, float proba_expand <- proba_expand_room){
+	list<cell> build_room(cell starting_cell, float proba_expand <- proba_expand_room){
 		
 		list<cell> the_room <- [starting_cell];
 		float id <- starting_cell.value;
@@ -184,25 +143,24 @@ global {
 	}
 	
 	/*
-	 *  Create a door in the_wall at given position {room1,room2}
+	 * Create a building from a previously created set of rooms
 	 */
-	action create_door(wall the_wall, point position){		
-		point center <- any_location_in(the_wall);
-		float dist_to_corner <- min(the_wall.shape.points collect (each distance_to center));
-		loop while: center = nil
-			or (dist_to_corner < (door_width/2)+0.2#m) {
-				
-			if debug_mode {write ""+the_wall+" - "+center+" > "+dist_to_corner;}
-				
-			center <- any_location_in(the_wall);
-			dist_to_corner <- min(the_wall.shape.points collect (each distance_to center));	
-		}
+	building create_building {
+		create building returns:b {
 			
-		if debug_mode {write "Create a door on the wall "+the_wall;}
-						
-		geometry the_door <- envelope(((the_wall.shape * (door_width / the_wall.shape.perimeter)) translated_to center) buffer wall_thickness);
-				
-		ask the_wall {create door with:[shape::the_door,connection::position];}
+			rooms <- list(room);
+			list<geometry> lines <- generate_pedestrian_network([wall],room,true,false,3.0,0.1,true,0.0,0.0,0.0);
+			
+			create corridor from: lines collect simplification(each, 0.01) with:[env::self] { do initialize distance:corridor_size obstacles:[wall]; }
+			pedestrian_network <- as_edge_graph(corridor);	
+			
+		}
+		
+		if(reduced_angular_distance) {
+			ask corridor { do build_exit_hub pedestrian_graph:env.pedestrian_network distance_between_targets: 2.0; }
+		}
+		
+		return b[0];
 	}
 	
 }
@@ -251,7 +209,7 @@ species room parent:block {
 	}
 	
 	list<room> neighboors {
-		return room where (each.walls contains_any walls);
+		return (room - self) where (each.walls contains_any walls);
 	}
 	
 	aspect default {
@@ -262,10 +220,39 @@ species room parent:block {
 
 species wall {
 		
+	geometry line;
+		
+	/*
+	 *  Create a door in the_wall at given position {room1,room2}
+	 */
+	action create_door(point position){		
+		point center <- any_location_in(line);
+		float dist_to_corner <- min(line.points collect (each distance_to center));
+		loop while: center = nil
+			or (dist_to_corner < (door_width/2)+0.2#m) {
+				
+			if trace {write ""+self+" - "+center+" > "+dist_to_corner;}
+				
+			center <- any_location_in(line);
+			dist_to_corner <- min(line.points collect (each distance_to center));	
+		}
+			
+		if trace {write "Create a door on the wall "+sample(self);}
+						
+		geometry the_door <- envelope(((line * (door_width / line.perimeter)) translated_to center) buffer wall_thickness);
+		
+		shape <- shape - the_door;
+				
+		create door with:[shape::the_door,connection::position];
+	}
+		
 	aspect default {
 		draw shape color:#black;
 	}
 	
+	/*
+	 * 
+	 */
 	species door {
 	
 		point connection;
