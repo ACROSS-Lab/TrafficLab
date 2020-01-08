@@ -14,8 +14,11 @@ import "AbstractLab.gaml"
 global {
 	
 	bool debug_mode <- false;
+	bool benchmark <- true;
 	 
 	float seed <- 1233445;
+	
+	float step <- 10#sec;
 	
 	string setup parameter:true init:"simple" among:["simple", "multiple", "complex"] category:"Transport system";
 	int number_of_intersections parameter:true init:20 min:5 category:"Transport system";
@@ -90,17 +93,19 @@ global {
 		if verbose {write "Start generating buildings";}
 		// ----------------------------------- //
 		
+		/* 
 		list blds <- simple_building(lines);
 		write sample(blds);
 		if length(blds) = 1 {error "There is only one building";}
 		else {write "There is "+length(blds)+" building in the ward";}
 		
 		loop bld over:blds {
-			building b <- create_building_from_sh(self);
+			//building b <- create_building_from_gs(build_gridshape(self,{1,2}));
+			building b <- create_simple_building(self);
 			write sample(b); 
 			ward(env).buildings <+ b;
 		}
-		
+		*/
 		// ward(env).buildings <- blds accumulate create_simple_building(each);
 		
 		// ----------------------------------- //

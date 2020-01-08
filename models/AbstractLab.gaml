@@ -23,6 +23,8 @@ global {
 	bool debug <- false; // (2) Debug within processes
 	bool trace <- false; // (3) Inloop and very verbose debug
 	
+	bool benchmark parameter:true init:false;
+	
 	// ------- //
 	// VEHICLE //
 	// ------- //
@@ -59,8 +61,10 @@ global {
 	
 	int nb_pedestrian <- 0;
 	
+	string walking_model parameter:true init:"SFM" among:["simple","SFM"] category:people;
+	
 	float P_obstacle_distance_repulsion_coeff;
-	float P_obstacle_repulsion_intensity;
+	float P_obstacle_consideration_distance;
 	float P_overlapping_coefficient;
 	float P_perception_sensibility;
 	float P_shoulder_length;
@@ -68,9 +72,17 @@ global {
 	float P_proba_detour;
 	bool P_avoid_other;
 	
+	float A_SFM;
+	float relaxion_SFM;
+	float gama_SFM;
+	float n_SFM;
+	float n_prime_SFM;
+	float lambda_SFM;
+	float body_depth;
+	
 	list obs_species <- [people,vehicle];
 	
-	string pedestrian_aspect <- "default" parameter:true among:["default","path","destination"] category:"display";
+	string pedestrian_aspect parameter:true init:"default" among:["default","path","destination"] category:"display";
 	
 	// Pedestrian network //
 	
@@ -100,7 +112,8 @@ global {
 			create simple_people number:nb_pedestrian with:[
 				location::env.any_location(self),
 				current_environment::env,
-				the_aspect::pedestrian_aspect
+				the_aspect::pedestrian_aspect,
+				pedestrian_model::"simple"
 			]{
 				obstacle_species <- obs_species;
 				obstacle_distance_repulsion_coeff <- P_obstacle_distance_repulsion_coeff;
@@ -114,7 +127,8 @@ global {
 			create advanced_people number:nb_pedestrian with:[
 				location::env.any_location(self),
 				current_environment::env,
-				the_aspect::pedestrian_aspect
+				the_aspect::pedestrian_aspect,
+				pedestrian_model::walking_model
 			]{
 				obstacle_species <- obs_species;
 				obstacle_distance_repulsion_coeff <- P_obstacle_distance_repulsion_coeff;
@@ -135,7 +149,7 @@ global {
 experiment lab type:gui virtual:true {
 	
 	parameter "People" var:is_people init:true enables:[nb_pedestrian,people_type,corridor_size,
-		P_obstacle_distance_repulsion_coeff,P_obstacle_repulsion_intensity,P_overlapping_coefficient,
+		P_obstacle_distance_repulsion_coeff,P_obstacle_consideration_distance,P_overlapping_coefficient,
 		P_perception_sensibility,P_shoulder_length,P_tolerance_target,P_tolerance_target,
 		P_proba_detour,P_avoid_other
 	];
@@ -144,7 +158,7 @@ experiment lab type:gui virtual:true {
 	
 	parameter "Size of corridors" var:corridor_size init:2.0 min:0.0 max:3#m category:pedestrian;
 	parameter "Repulsion coefficient" var:P_obstacle_distance_repulsion_coeff init:1.0 category:pedestrian;
-	parameter "Repulsion intensity" var:P_obstacle_repulsion_intensity init:2.0 category:pedestrian;
+	parameter "Repulsion intensity" var:P_obstacle_consideration_distance init:2.0 category:pedestrian;
 	parameter "Overlapping coefficient" var:P_overlapping_coefficient init:2.0 category:pedestrian;
 	parameter "Perception sensitivity" var:P_perception_sensibility init:1.0 category:pedestrian;
 	parameter "Shoulder length" var:P_shoulder_length init:0.5 category:pedestrian;

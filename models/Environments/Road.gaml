@@ -89,6 +89,8 @@ species intersection skills:[skill_road_node] parent:block {
 
 species corridor skills:[pedestrian_road] parent:block {
 	
+	rgb hub_color <- blend(color,rnd_color(255));
+	
 	bool contains_agent(agent the_agent){
 		return agents_on contains the_agent;
 	}
@@ -102,8 +104,11 @@ species corridor skills:[pedestrian_road] parent:block {
 	}
 	
 	aspect hub {
+		draw free_space color:blend(#yellow,#transparent,0.2);
+		draw shape color:#yellow;
+		
 		loop h over: exit_nodes.values accumulate list<point>(each){
-			draw square(2.0) at: point(h) color: color;
+			draw cross(0.2) at: point(h) color: hub_color;
 		} 
 	}
 }

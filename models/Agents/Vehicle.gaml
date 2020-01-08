@@ -156,6 +156,10 @@ species bus skills:[escape_publictransport_skill] parent:vehicle {
 		
 	}
 	
+	aspect default {
+		draw rectangle(vehicle_width,vehicle_length) rotate:heading+90 color:color; 
+	}
+	
 	aspect big {
 		draw rectangle(vehicle_width*3,vehicle_length*3) rotate:heading+90 color:color;
 	}

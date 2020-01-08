@@ -11,12 +11,35 @@ import "Environment.gaml"
 import "../Utils/GridEnvironment.gaml"
 
 /*
- * Building factory based on gridshape (@see GridEnvironment.gaml)
+ * Building factory based on gridshape (@see GridEnvironment.gaml) <br/>
+ * 
+ * TODO : CHANGE BUILDING FACTORY NOT TO USE SPECIES (room & wall) AS LIST OF AGENT
+ * 
  */
 global {
 	
 	int base_id <- 1;
 	float proba_expand_room parameter:true init:0.9 max:0.99 category:building;
+	
+	/*
+	 * Simplest possible building : take a geometry turn in into a building with exit on each wall
+	 */
+	building create_simple_building(geometry building_shape) {
+		
+		create room with:[shape::building_shape,room_number::1] returns:r;
+		if debug {write "Create a room";}
+		
+		ask to_segments(r[0].shape.contour) {
+			create wall with:[line::self,shape::envelope(self buffer wall_thickness)] returns:w;
+			ask r[0] {walls <- w;}
+		}
+		if debug {write "Create walls";}
+		
+		ask r[0] {ask walls {do create_door({-1,myself.room_number});}}
+		if debug {write "Create doors";}
+		
+		return create_building();
+	}
 	
 	/*
 	 * Build a building from a gridshape
@@ -27,11 +50,14 @@ global {
 		int id <- base_id;
 		bool available_cells <- true;
 		
+		float t <- machine_time;
 		if debug {write "Create the first room to start building";}
+		
 		cell c <- gs.grid[{0,0}];
 		c.value <- float(id);
 		list<cell> current_room <- build_room(c);
 		create room with:[shape::union(current_room),room_number::id]{ the_rooms <+ self; }
+		if benchmark { write "Create first room ["+string(machine_time-t)+"ms]"; t <- machine_time;}
 		
 		if debug {write "Expanding the building from neighbor to neighbor room, until no more space";}
 		loop while:available_cells {
@@ -46,8 +72,7 @@ global {
 		}
 		
 		if debug {write "Building contains "+length(the_rooms)+" rooms";}
-		
-		if debug {write "Create walls !";}
+		if benchmark { write "Create other rooms ["+string(machine_time-t)+"ms]"; t <- machine_time;}
 		
 		ask room {
 			loop g over:to_segments(shape.contour) { 
@@ -61,6 +86,7 @@ global {
 		if room one_matches (empty(each.neighboors())) {
 			error "There is room without any neighbors: \n"+sample(room where (empty(each.neighboors())));
 		}
+		if benchmark { write "Create the walls ["+string(machine_time-t)+"ms]"; t <- machine_time;}
 		
 		if debug {write "Create doors !";} 
 		int max_id <- max(room collect each.room_number);
@@ -86,6 +112,8 @@ global {
 			
 		}
 		
+		if benchmark { write "Create the doors ["+string(machine_time-t)+"ms]"; t <- machine_time;}
+		
 		return create_building();
 	}
 	
@@ -93,8 +121,11 @@ global {
 	 * Create a very simple building made of wall and doors
 	 */
 	building create_building_from_sh(geometry building_shape, int xn <- 2, int yn <- 1) {
-				
+		float t <- machine_time;	
+		
 		create room from:building_shape to_rectangles (xn,yn) { room_number <- int(self); }
+		
+		if benchmark { write "creating simple rooms ["+string(machine_time-t)+"ms]"; t <- machine_time;}
 		 
 		ask room {
 			loop g over:to_segments(shape.contour) {
@@ -106,6 +137,8 @@ global {
 			}
 		}
 		
+		if benchmark { write "creating simple walls ["+string(machine_time-t)+"ms]"; t <- machine_time;}
+		
 		list<wall> connecting_walls;
 		loop r over:room { 
 			list cw <- (room - r) accumulate (each.walls inter r.walls);
@@ -115,11 +148,15 @@ global {
 		if connecting_walls = nil or empty(connecting_walls) {error "There must be at least one door";}
 		else if debug {write "Creates door on "+sample(connecting_walls);}
 		
+		if benchmark { write "Find door walls ["+string(machine_time-t)+"ms]"; t <- machine_time;}
+		
 		ask connecting_walls {
 			list<room> cr <- room where (each.walls contains self); 
 			if length(cr) > 2 {error  sample(self)+" cannot be connected to more that 2 room : "+sample(cr);}
 			do create_door({cr[0].room_number,cr[1].room_number});
 		} 
+		
+		if benchmark { write "Create simple doors ["+string(machine_time-t)+"ms]"; t <- machine_time;}
 		
 		return create_building();
 		
@@ -146,19 +183,25 @@ global {
 	 * Create a building from a previously created set of rooms
 	 */
 	building create_building {
+		float t <- machine_time;
+		
 		create building returns:b {
 			
 			rooms <- list(room);
-			list<geometry> lines <- generate_pedestrian_network([wall],room,true,false,3.0,0.1,true,0.0,0.0,0.0);
+			list<geometry> lines <- generate_pedestrian_network([wall],room,true,false,3.0,0.1,true,0.1,0.0,0.0);
+			if benchmark { write "Create "+sample(self)+" pedestrian network ["+string(machine_time-t)+"ms]"; t <- machine_time;}
 			
 			create corridor from: lines collect simplification(each, 0.01) with:[env::self] { do initialize distance:corridor_size obstacles:[wall]; }
-			pedestrian_network <- as_edge_graph(corridor);	
+			pedestrian_network <- as_edge_graph(corridor);
+			if benchmark { write "init corridors ["+string(machine_time-t)+"]"; t <- machine_time;}	
 			
 		}
 		
 		if(reduced_angular_distance) {
-			ask corridor { do build_exit_hub pedestrian_graph:env.pedestrian_network distance_between_targets: 2.0; }
+			ask corridor { do build_exit_hub pedestrian_graph:env.pedestrian_network distance_between_targets: corridor_size/3; }
+			if benchmark { write "Create hubs of corridors ["+string(machine_time-t)+"ms]"; t <- machine_time;}
 		}
+		
 		
 		return b[0];
 	}
